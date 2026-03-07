@@ -75,7 +75,7 @@ cw1/
 ### 1. Install dependencies
 
 ```bash
-pip install -r requirements.txt
+make install
 ```
 
 ### 2. Configure environment
@@ -96,27 +96,61 @@ Key variables:
 
 ### 3. Seed the database
 
-Populates the database with 20 drivers, 10 teams, 30 trivia facts, and an admin user:
+Downloads the [Kaggle F1 Race Data](https://www.kaggle.com/datasets/jtrotman/formula-1-race-data) dataset and populates the database with drivers, teams (including computed career stats and championship counts), 30 hand-curated trivia facts, and an admin user:
 
 ```bash
-python -m src.data.seed
+make seed
+
+# Or to drop all collections and re-seed from scratch:
+make reseed
 ```
 
 > Default admin credentials: `admin` / `admin123`
 
-### 4. Run the server
+### 4. Start MongoDB & run the server
 
 ```bash
-# Development (hot reload, excludes venv from file watcher)
-uvicorn src.main:app --reload --host 0.0.0.0 --port 8000 --reload-exclude 'venv/*'
+# Start MongoDB (brew services)
+make db-start
 
-# Or use Make (already configured)
+# Development (hot reload)
 make dev
+
+# Production
+make run
+
+# Stop MongoDB when done
+make db-stop
 ```
 
-### 5. Explore the API
+### 5. Run the tests
+
+```bash
+make test           # Run all tests (verbose)
+make test-fast      # Stop on first failure
+make test-cov       # With coverage report
+```
+
+### 6. Explore the API
 
 Open **http://localhost:8000/docs** for the interactive Swagger UI.
+
+## 🛠️ Makefile Reference
+
+| Command | Description |
+|---|---|
+| `make install` | Install Python dependencies |
+| `make db-start` | Start MongoDB server |
+| `make db-stop` | Stop MongoDB server |
+| `make dev` | Run server with hot-reload |
+| `make run` | Run server (production mode) |
+| `make seed` | Seed the database from Kaggle dataset |
+| `make reseed` | Drop all collections and re-seed |
+| `make test` | Run all tests (verbose) |
+| `make test-fast` | Run tests, stop on first failure |
+| `make test-cov` | Run tests with coverage report |
+| `make lint` | Quick syntax check |
+| `make clean` | Remove `__pycache__` and `.pyc` files |
 
 ## 📡 API Endpoints
 
@@ -272,6 +306,7 @@ curl -X POST http://localhost:8000/trivia/quiz/answer \
 - **Pydantic v2** – Data validation and serialization
 - **python-jose** – JWT token encoding/decoding
 - **bcrypt** – Secure password hashing (direct usage, no passlib wrapper)
+- **kagglehub** – Downloads the [F1 Race Data](https://www.kaggle.com/datasets/jtrotman/formula-1-race-data) dataset for seeding
 
 ## 📄 License
 
