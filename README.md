@@ -1,39 +1,278 @@
-# Space Facts API
+# 🏎️ F1 Facts API
 
-A FastAPI project for managing fun and educational space facts, using SQLite for storage.
+A community-driven Formula 1 RESTful API built with **FastAPI** and **MongoDB**. Track drivers & teams, build personal favourite lists, predict championship winners, play trivia quizzes, compare drivers head-to-head, and share your hottest F1 takes!
 
-## Features
-- CRUD endpoints for space facts
-- Categories: planet, star, mission, etc.
-- Seed script for initial facts
+## ✨ Features
 
-## Endpoints
-- `POST /facts` — Create a new fact
-- `GET /facts` — Retrieve all facts
-- `GET /facts/{id}` — Retrieve a specific fact
-- `PUT /facts/{id}` — Update a fact
-- `DELETE /facts/{id}` — Delete a fact
+| Feature | Description |
+|---|---|
+| 🔐 **Auth** | Register, login, JWT-based authentication |
+| 🏎️ **Drivers** | Full CRUD for the 2025 F1 driver grid (admin-managed, public read) |
+| 🏁 **Teams** | Full CRUD for the 2025 constructor lineup (admin-managed, public read) |
+| ⭐ **Favourites** | Create personal lists of favourite drivers and teams |
+| 🔮 **Predictions** | Predict the Driver & Constructor Champions with confidence ratings |
+| 📊 **Leaderboard** | Global aggregated view of who the community thinks will win |
+| 🧠 **Trivia & Facts** | Random F1 facts, user-submitted facts with like/approve, plus a quiz mode |
+| ⚔️ **Head-to-Head** | Compare any two drivers' stats side-by-side and vote on who's better |
+| 🔥 **Hot Takes** | Post controversial F1 opinions — others agree or disagree |
+| 📅 **Calendar** | 2025 race calendar with upcoming-race filtering |
 
-## Setup
-1. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-2. Seed the database:
-   ```bash
-   python seed.py
-   ```
-3. Run the API:
-   ```bash
-   uvicorn main:app --reload
-   ```
+## 🗂️ Project Structure
 
-## Example Fact
 ```
-{
-  "title": "The Sun is a star",
-  "description": "The Sun is the closest star to Earth.",
-  "source": "NASA",
-  "category": "star"
-}
+cw1/
+├── .env                      # Environment variables
+├── requirements.txt          # Python dependencies
+├── Makefile                  # Quick commands
+├── README.md
+└── src/
+    ├── main.py               # FastAPI app entry point
+    ├── config/
+    │   └── settings.py       # Pydantic settings from .env
+    ├── core/
+    │   └── security.py       # JWT + password hashing
+    ├── models/               # Pydantic models (schemas)
+    │   ├── common.py         # Shared base classes
+    │   ├── user.py
+    │   ├── driver.py
+    │   ├── team.py
+    │   ├── favourite.py
+    │   ├── prediction.py
+    │   ├── fact.py
+    │   ├── head_to_head.py
+    │   └── hot_take.py
+    ├── db/                   # MongoDB query functions
+    │   ├── collections.py    # Collection name constants
+    │   ├── users.py
+    │   ├── drivers.py
+    │   ├── teams.py
+    │   ├── favourites.py
+    │   ├── predictions.py
+    │   ├── facts.py
+    │   ├── head_to_head.py
+    │   └── hot_takes.py
+    ├── routers/              # API route handlers
+    │   ├── auth.py
+    │   ├── drivers.py
+    │   ├── teams.py
+    │   ├── favourites.py
+    │   ├── predictions.py
+    │   ├── trivia.py
+    │   ├── head_to_head.py
+    │   ├── hot_takes.py
+    │   └── calendar.py
+    └── data/
+        └── seed.py           # Database seeder (drivers, teams, facts, admin user)
 ```
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- **Python 3.12** (3.14 is not yet supported by pydantic-core)
+- **MongoDB** running locally (default `mongodb://localhost:27017`) or a [MongoDB Atlas](https://www.mongodb.com/atlas) free-tier cluster
+
+### 1. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Configure environment
+
+Copy the example and edit as needed:
+
+```bash
+cp .env.example .env
+```
+
+Key variables:
+| Variable | Default | Description |
+|---|---|---|
+| `MONGO_URI` | `mongodb://localhost:27017` | MongoDB connection string |
+| `DB_NAME` | `f1_facts_db` | Database name |
+| `JWT_SECRET` | random | Change this in production! |
+| `TOKEN_EXPIRY_MINUTES` | `120` | JWT expiry time |
+
+### 3. Seed the database
+
+Populates the database with 20 drivers, 10 teams, 30 trivia facts, and an admin user:
+
+```bash
+python -m src.data.seed
+```
+
+> Default admin credentials: `admin` / `admin123`
+
+### 4. Run the server
+
+```bash
+# Development (hot reload, excludes venv from file watcher)
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000 --reload-exclude 'venv/*'
+
+# Or use Make (already configured)
+make dev
+```
+
+### 5. Explore the API
+
+Open **http://localhost:8000/docs** for the interactive Swagger UI.
+
+## 📡 API Endpoints
+
+### 🔐 Auth
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/auth/register` | ❌ | Create account |
+| POST | `/auth/login` | ❌ | Login (form-data), get JWT |
+| GET | `/auth/me` | ✅ | Get profile |
+| PATCH | `/auth/me` | ✅ | Update profile |
+| DELETE | `/auth/me` | ✅ | Delete account |
+
+### 🏎️ Drivers
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/drivers` | ❌ | List all drivers |
+| GET | `/drivers/search?name=&team=` | ❌ | Search drivers |
+| GET | `/drivers/{id}` | ❌ | Get driver by ID |
+| POST | `/drivers` | 🔑 Admin | Create driver |
+| PATCH | `/drivers/{id}` | 🔑 Admin | Update driver |
+| DELETE | `/drivers/{id}` | 🔑 Admin | Delete driver |
+
+### 🏁 Teams
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/teams` | ❌ | List all teams |
+| GET | `/teams/search?name=` | ❌ | Search teams |
+| GET | `/teams/{id}` | ❌ | Get team by ID |
+| POST | `/teams` | 🔑 Admin | Create team |
+| PATCH | `/teams/{id}` | 🔑 Admin | Update team |
+| DELETE | `/teams/{id}` | 🔑 Admin | Delete team |
+
+### ⭐ Favourites
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/favourites` | ✅ | List my favourite lists |
+| GET | `/favourites/{id}` | ✅ | Get a specific list |
+| POST | `/favourites` | ✅ | Create a new list |
+| PATCH | `/favourites/{id}` | ✅ | Rename a list |
+| DELETE | `/favourites/{id}` | ✅ | Delete a list |
+| POST | `/favourites/{id}/items` | ✅ | Add item to list |
+| DELETE | `/favourites/{id}/items/{item_id}` | ✅ | Remove item from list |
+
+### 🔮 Predictions & 📊 Leaderboard
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/predictions` | ✅ | List my predictions |
+| GET | `/predictions/view/{id}` | ✅ | Get a prediction |
+| POST | `/predictions` | ✅ | Submit prediction |
+| PATCH | `/predictions/{id}` | ✅ | Update prediction |
+| DELETE | `/predictions/{id}` | ✅ | Delete prediction |
+| GET | `/predictions/leaderboard/drivers?season=2025` | ❌ | Driver championship votes |
+| GET | `/predictions/leaderboard/constructors?season=2025` | ❌ | Constructor championship votes |
+
+### 🧠 Trivia & Facts
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/trivia/random` | ❌ | Random F1 fact |
+| GET | `/trivia` | ❌ | All approved facts |
+| POST | `/trivia` | ✅ | Submit a fact |
+| POST | `/trivia/{id}/like` | ✅ | Like / unlike |
+| PATCH | `/trivia/{id}/approve` | 🔑 Admin | Approve fact |
+| DELETE | `/trivia/{id}` | 🔑 Admin | Delete fact |
+| GET | `/trivia/quiz` | ❌ | Random quiz question |
+| POST | `/trivia/quiz/answer` | ❌ | Check quiz answer |
+
+### ⚔️ Head-to-Head
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/head-to-head/compare/{d1}/{d2}` | ❌ | Compare two drivers + votes |
+| POST | `/head-to-head/vote` | ✅ | Vote on who's better |
+
+### 🔥 Hot Takes
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/hot-takes?sort_by=recent\|spicy\|popular` | ❌ | List hot takes |
+| GET | `/hot-takes/{id}` | ❌ | Get a hot take |
+| POST | `/hot-takes` | ✅ | Post a hot take |
+| POST | `/hot-takes/{id}/react` | ✅ | Agree / disagree |
+| DELETE | `/hot-takes/{id}` | ✅ | Delete (own or admin) |
+
+### 📅 Calendar
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/calendar` | ❌ | 2025 race calendar |
+| GET | `/calendar?upcoming_only=true` | ❌ | Only upcoming races |
+| GET | `/calendar/{round}` | ❌ | Specific round details |
+
+## 🔒 Authentication
+
+The API uses **JWT Bearer tokens**. After registering or logging in, include the token in requests:
+
+```
+Authorization: Bearer <your-token>
+```
+
+In the Swagger UI, click the 🔒 **Authorize** button and paste your token.
+
+## 📦 Example Usage
+
+### Register & Login
+```bash
+# Register
+curl -X POST http://localhost:8000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"zeyad","email":"zeyad@example.com","display_name":"Zeyad","password":"mypass123"}'
+
+# Login (uses OAuth2 form-data)
+curl -X POST http://localhost:8000/auth/login \
+  -d 'username=zeyad&password=mypass123'
+```
+
+### Create a favourite list & add drivers
+```bash
+TOKEN="your-jwt-token"
+
+# Create list
+curl -X POST http://localhost:8000/favourites \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"My Dream Team","list_type":"drivers"}'
+
+# Add a driver to the list
+curl -X POST http://localhost:8000/favourites/{list_id}/items \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"item_id":"driver_id_here","name":"Max Verstappen"}'
+```
+
+### Make a championship prediction
+```bash
+curl -X POST http://localhost:8000/predictions \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"season":2025,"category":"driver_championship","predicted_id":"driver_id","predicted_name":"Max Verstappen","confidence":9,"reasoning":"Dominant car and driver combo"}'
+```
+
+### Play trivia
+```bash
+# Get a quiz question
+curl http://localhost:8000/trivia/quiz
+
+# Answer it
+curl -X POST http://localhost:8000/trivia/quiz/answer \
+  -H "Content-Type: application/json" \
+  -d '{"question_id":"q01","answer":"Monza"}'
+```
+
+## 🛠️ Tech Stack
+
+- **FastAPI** – Modern async Python web framework
+- **MongoDB** + **Motor** – Async document database
+- **Pydantic v2** – Data validation and serialization
+- **python-jose** – JWT token encoding/decoding
+- **bcrypt** – Secure password hashing (direct usage, no passlib wrapper)
+
+## 📄 License
+
+This project was built for COMP3011 Web Services Development coursework.
