@@ -19,6 +19,9 @@ dev:
 run:
 	$(PYTHON) -m uvicorn src.main:app --host 0.0.0.0 --port 8000
 
+onboard:
+	$(PYTHON) -m scripts.mongodb.onboard
+
 seed:
 	$(PYTHON) -m src.data.seed
 
@@ -44,4 +47,4 @@ reseed:
 
 DB_NAME ?= f1_facts_db
 
-.PHONY: install db-start db-stop stop dev run seed test test-cov test-fast lint clean reseed
+.PHONY: install db-start db-stop stop dev run onboard seed test test-cov test-fast lint clean reseed

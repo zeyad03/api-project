@@ -17,7 +17,6 @@ import kagglehub
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from src.config.settings import settings
-from src.core.security import hash_password
 from src.db.collections import collections
 from src.models.common import utc_now
 
@@ -255,21 +254,6 @@ async def seed():
         print(f"✅  Seeded {len(FACTS)} facts")
     else:
         print(f"ℹ️  Facts collection already has {existing_facts} documents, skipping")
-
-    # ── Admin user ───────────────────────────────────────────────────────────
-    admin = await db[collections.users].find_one({"username": "admin"})
-    if not admin:
-        await db[collections.users].insert_one({
-            "username": "admin",
-            "email": "admin@f1facts.api",
-            "display_name": "Admin",
-            "password_hash": hash_password("admin123"),
-            "is_admin": True,
-            "created_at": now,
-        })
-        print("✅  Created admin user (username: admin, password: admin123)")
-    else:
-        print("ℹ️  Admin user already exists, skipping")
 
     # ── Indexes ──────────────────────────────────────────────────────────────
     await db[collections.users].create_index("username", unique=True)
