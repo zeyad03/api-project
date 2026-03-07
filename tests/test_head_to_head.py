@@ -67,6 +67,25 @@ class TestVote:
         assert resp.status_code == 201
         assert resp.json()["winner_id"] == FAKE_DRIVER_ID
 
+    @patch("src.routers.head_to_head.cast_h2h_vote", new_callable=AsyncMock)
+    @patch("src.routers.head_to_head.get_driver_by_name", new_callable=AsyncMock)
+    def test_cast_vote_by_name(self, mock_name, mock_vote, auth_client):
+        mock_name.return_value = _driver(FAKE_DRIVER_ID, "Lewis Hamilton")
+        mock_vote.return_value = _vote()
+        resp = auth_client.post("/head-to-head/vote", json={
+            "driver1_name": "Lewis Hamilton",
+            "driver2_id": FAKE_DRIVER2_ID,
+            "winner_name": "Lewis Hamilton",
+        })
+        assert resp.status_code == 201
+
+    def test_cast_vote_missing_id_and_name(self, auth_client):
+        resp = auth_client.post("/head-to-head/vote", json={
+            "driver1_id": FAKE_DRIVER_ID,
+            "driver2_id": FAKE_DRIVER2_ID,
+        })
+        assert resp.status_code == 400
+
     def test_unauthenticated(self, client):
         resp = client.post("/head-to-head/vote", json={
             "driver1_id": FAKE_DRIVER_ID,
