@@ -70,11 +70,12 @@ cw1/
 ### Prerequisites
 
 - **Python 3.12** (3.14 is not yet supported by pydantic-core)
-- **MongoDB** running locally (default `mongodb://localhost:27017`) or a [MongoDB Atlas](https://www.mongodb.com/atlas) free-tier cluster
+- **MongoDB** installed via Homebrew (`brew install mongodb-community@7.0`)
 
-### 1. Install dependencies
+### 1. Create a virtual environment & install dependencies
 
 ```bash
+python3 -m venv venv
 make install
 ```
 
@@ -110,7 +111,7 @@ make reseed
 ### 4. Start MongoDB & run the server
 
 ```bash
-# Start MongoDB (brew services)
+# Start MongoDB
 make db-start
 
 # Development (hot reload)
@@ -118,6 +119,9 @@ make dev
 
 # Production
 make run
+
+# Stop the server
+make stop
 
 # Stop MongoDB when done
 make db-stop
@@ -139,13 +143,14 @@ Open **http://localhost:8000/docs** for the interactive Swagger UI.
 
 | Command | Description |
 |---|---|
-| `make install` | Install Python dependencies |
-| `make db-start` | Start MongoDB server |
-| `make db-stop` | Stop MongoDB server |
+| `make install` | Install Python dependencies into `venv` |
+| `make db-start` | Start MongoDB via `brew services` |
+| `make db-stop` | Stop MongoDB via `brew services` |
 | `make dev` | Run server with hot-reload |
 | `make run` | Run server (production mode) |
+| `make stop` | Kill the server process on port 8000 |
 | `make seed` | Seed the database from Kaggle dataset |
-| `make reseed` | Drop all collections and re-seed |
+| `make reseed` | Drop all collections and re-seed from scratch |
 | `make test` | Run all tests (verbose) |
 | `make test-fast` | Run tests, stop on first failure |
 | `make test-cov` | Run tests with coverage report |
