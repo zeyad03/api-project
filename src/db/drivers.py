@@ -21,6 +21,16 @@ async def get_driver_by_id(driver_id: str, db: AsyncIOMotorDatabase) -> Driver:
     return Driver(**doc)
 
 
+async def get_driver_by_name(name: str, db: AsyncIOMotorDatabase) -> Driver:
+    """Find a driver by exact name (case-insensitive)."""
+    doc = await db[collections.drivers].find_one(
+        {"name": {"$regex": f"^{name}$", "$options": "i"}}
+    )
+    if not doc:
+        raise DriverNotFoundError(name)
+    return Driver(**doc)
+
+
 async def search_drivers(
     db: AsyncIOMotorDatabase, name: str | None = None, team: str | None = None
 ) -> list[Driver]:
