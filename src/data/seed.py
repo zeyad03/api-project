@@ -1,160 +1,178 @@
-"""Seed script – populates MongoDB with F1 drivers, teams, and trivia facts.
+"""Seed script – populates MongoDB with F1 data from the Kaggle dataset.
+
+Uses the ``jtrotman/formula-1-race-data`` Kaggle dataset for drivers and
+teams (constructors).  Career statistics (wins, podiums, poles, championships)
+are computed from the historical results and standings CSVs.  Trivia facts
+are still provided as hand-curated data.
 
 Run with:  python -m src.data.seed
 """
 
 import asyncio
+import csv
+import os
+from collections import defaultdict
+
+import kagglehub
 from motor.motor_asyncio import AsyncIOMotorClient
+
 from src.config.settings import settings
-from src.db.collections import collections
 from src.core.security import hash_password
+from src.db.collections import collections
 from src.models.common import utc_now
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  2025 F1 TEAMS
+#  KAGGLE HELPERS
 # ═══════════════════════════════════════════════════════════════════════════════
-TEAMS = [
-    {
-        "name": "Red Bull Racing",
-        "full_name": "Oracle Red Bull Racing",
-        "base": "Milton Keynes, UK",
-        "team_principal": "Christian Horner",
-        "championships": 6,
-        "first_entry": 2005,
-        "car": "RB21",
-        "engine": "Honda RBPT",
-        "active": True,
-    },
-    {
-        "name": "Mercedes",
-        "full_name": "Mercedes-AMG Petronas F1 Team",
-        "base": "Brackley, UK",
-        "team_principal": "Toto Wolff",
-        "championships": 8,
-        "first_entry": 2010,
-        "car": "W16",
-        "engine": "Mercedes",
-        "active": True,
-    },
-    {
-        "name": "Ferrari",
-        "full_name": "Scuderia Ferrari HP",
-        "base": "Maranello, Italy",
-        "team_principal": "Frédéric Vasseur",
-        "championships": 16,
-        "first_entry": 1950,
-        "car": "SF-25",
-        "engine": "Ferrari",
-        "active": True,
-    },
-    {
-        "name": "McLaren",
-        "full_name": "McLaren Formula 1 Team",
-        "base": "Woking, UK",
-        "team_principal": "Andrea Stella",
-        "championships": 8,
-        "first_entry": 1966,
-        "car": "MCL39",
-        "engine": "Mercedes",
-        "active": True,
-    },
-    {
-        "name": "Aston Martin",
-        "full_name": "Aston Martin Aramco F1 Team",
-        "base": "Silverstone, UK",
-        "team_principal": "Andy Cowell",
-        "championships": 0,
-        "first_entry": 2021,
-        "car": "AMR25",
-        "engine": "Honda RBPT",
-        "active": True,
-    },
-    {
-        "name": "Alpine",
-        "full_name": "BWT Alpine F1 Team",
-        "base": "Enstone, UK",
-        "team_principal": "Oliver Oakes",
-        "championships": 2,
-        "first_entry": 2021,
-        "car": "A525",
-        "engine": "Mercedes",
-        "active": True,
-    },
-    {
-        "name": "Williams",
-        "full_name": "Williams Racing",
-        "base": "Grove, UK",
-        "team_principal": "James Vowles",
-        "championships": 9,
-        "first_entry": 1978,
-        "car": "FW47",
-        "engine": "Mercedes",
-        "active": True,
-    },
-    {
-        "name": "RB (Visa Cash App)",
-        "full_name": "Visa Cash App Racing Bulls F1 Team",
-        "base": "Faenza, Italy",
-        "team_principal": "Laurent Mekies",
-        "championships": 0,
-        "first_entry": 2006,
-        "car": "VCARB 02",
-        "engine": "Honda RBPT",
-        "active": True,
-    },
-    {
-        "name": "Kick Sauber",
-        "full_name": "Stake F1 Team Kick Sauber",
-        "base": "Hinwil, Switzerland",
-        "team_principal": "Mattia Binotto",
-        "championships": 0,
-        "first_entry": 1993,
-        "car": "C45",
-        "engine": "Ferrari",
-        "active": True,
-    },
-    {
-        "name": "Haas",
-        "full_name": "MoneyGram Haas F1 Team",
-        "base": "Kannapolis, USA",
-        "team_principal": "Ayao Komatsu",
-        "championships": 0,
-        "first_entry": 2016,
-        "car": "VF-25",
-        "engine": "Ferrari",
-        "active": True,
-    },
-]
+
+def _download_dataset() -> str:
+    """Download (or use cached) Kaggle F1 race-data and return the path."""
+    path = kagglehub.dataset_download("jtrotman/formula-1-race-data")
+    print(f"📦  Kaggle dataset path: {path}")
+    return path
+
+
+def _read_csv(dataset_path: str, filename: str) -> list[dict]:
+    """Read a CSV file from the dataset into a list of dicts."""
+    with open(os.path.join(dataset_path, filename), encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  2025 F1 DRIVERS
+#  BUILD TEAMS FROM KAGGLE DATA
 # ═══════════════════════════════════════════════════════════════════════════════
-DRIVERS = [
-    {"name": "Max Verstappen", "number": 1, "team": "Red Bull Racing", "nationality": "Dutch", "date_of_birth": "1997-09-30", "championships": 4, "wins": 63, "podiums": 111, "poles": 40, "bio": "Four-time World Champion and one of the most dominant drivers in F1 history.", "active": True},
-    {"name": "Liam Lawson", "number": 30, "team": "Red Bull Racing", "nationality": "New Zealander", "date_of_birth": "2002-02-11", "championships": 0, "wins": 0, "podiums": 0, "poles": 0, "bio": "Promoted to Red Bull Racing for 2025 after impressive stints at VCARB.", "active": True},
-    {"name": "Lewis Hamilton", "number": 44, "team": "Ferrari", "nationality": "British", "date_of_birth": "1985-01-07", "championships": 7, "wins": 105, "podiums": 201, "poles": 104, "bio": "Seven-time World Champion who joined Ferrari for 2025 in a blockbuster move.", "active": True},
-    {"name": "Charles Leclerc", "number": 16, "team": "Ferrari", "nationality": "Monégasque", "date_of_birth": "1997-10-16", "championships": 0, "wins": 8, "podiums": 40, "poles": 26, "bio": "Ferrari's star driver known for his raw speed and passionate driving style.", "active": True},
-    {"name": "Lando Norris", "number": 4, "team": "McLaren", "nationality": "British", "date_of_birth": "1999-11-13", "championships": 0, "wins": 4, "podiums": 28, "poles": 8, "bio": "McLaren's team leader, blending speed with a charismatic personality.", "active": True},
-    {"name": "Oscar Piastri", "number": 81, "team": "McLaren", "nationality": "Australian", "date_of_birth": "2001-04-06", "championships": 0, "wins": 2, "podiums": 14, "poles": 2, "bio": "Former F2 and F3 champion making waves in only his third F1 season.", "active": True},
-    {"name": "George Russell", "number": 63, "team": "Mercedes", "nationality": "British", "date_of_birth": "1998-02-15", "championships": 0, "wins": 3, "podiums": 18, "poles": 5, "bio": "Mercedes team leader known for his consistency and racecraft.", "active": True},
-    {"name": "Andrea Kimi Antonelli", "number": 12, "team": "Mercedes", "nationality": "Italian", "date_of_birth": "2006-08-25", "championships": 0, "wins": 0, "podiums": 0, "poles": 0, "bio": "Teenage prodigy fast-tracked to Mercedes, tipped as a future champion.", "active": True},
-    {"name": "Fernando Alonso", "number": 14, "team": "Aston Martin", "nationality": "Spanish", "date_of_birth": "1981-07-29", "championships": 2, "wins": 32, "podiums": 106, "poles": 22, "bio": "Two-time World Champion and the elder statesman of the grid at 43.", "active": True},
-    {"name": "Lance Stroll", "number": 18, "team": "Aston Martin", "nationality": "Canadian", "date_of_birth": "1998-10-29", "championships": 0, "wins": 0, "podiums": 3, "poles": 1, "bio": "Son of team owner Lawrence Stroll, a podium finisher in multiple seasons.", "active": True},
-    {"name": "Pierre Gasly", "number": 10, "team": "Alpine", "nationality": "French", "date_of_birth": "1996-02-07", "championships": 0, "wins": 1, "podiums": 5, "poles": 0, "bio": "Former race winner leading Alpine's charge up the grid.", "active": True},
-    {"name": "Jack Doohan", "number": 7, "team": "Alpine", "nationality": "Australian", "date_of_birth": "2003-01-20", "championships": 0, "wins": 0, "podiums": 0, "poles": 0, "bio": "Son of motorcycle legend Mick Doohan, making his full-time F1 debut.", "active": True},
-    {"name": "Alexander Albon", "number": 23, "team": "Williams", "nationality": "Thai-British", "date_of_birth": "1996-03-23", "championships": 0, "wins": 0, "podiums": 2, "poles": 0, "bio": "Fan favourite known for his wheel-to-wheel racing and resilience.", "active": True},
-    {"name": "Carlos Sainz", "number": 55, "team": "Williams", "nationality": "Spanish", "date_of_birth": "1994-09-01", "championships": 0, "wins": 4, "podiums": 25, "poles": 6, "bio": "Multiple race winner who joined Williams after his Ferrari departure.", "active": True},
-    {"name": "Yuki Tsunoda", "number": 22, "team": "RB (Visa Cash App)", "nationality": "Japanese", "date_of_birth": "2000-05-11", "championships": 0, "wins": 0, "podiums": 0, "poles": 0, "bio": "Fiery Japanese driver with raw speed and entertaining radio messages.", "active": True},
-    {"name": "Isack Hadjar", "number": 6, "team": "RB (Visa Cash App)", "nationality": "French-Algerian", "date_of_birth": "2004-09-28", "championships": 0, "wins": 0, "podiums": 0, "poles": 0, "bio": "2024 F2 runner-up earning his F1 seat through the Red Bull junior programme.", "active": True},
-    {"name": "Nico Hülkenberg", "number": 27, "team": "Kick Sauber", "nationality": "German", "date_of_birth": "1987-08-19", "championships": 0, "wins": 0, "podiums": 0, "poles": 1, "bio": "Experienced campaigner joining the Audi project via Kick Sauber.", "active": True},
-    {"name": "Gabriel Bortoleto", "number": 5, "team": "Kick Sauber", "nationality": "Brazilian", "date_of_birth": "2004-10-14", "championships": 0, "wins": 0, "podiums": 0, "poles": 0, "bio": "2024 F2 champion and exciting young talent from Brazil.", "active": True},
-    {"name": "Esteban Ocon", "number": 31, "team": "Haas", "nationality": "French", "date_of_birth": "1996-09-17", "championships": 0, "wins": 1, "podiums": 3, "poles": 0, "bio": "Race winner who brings experience and determination to Haas.", "active": True},
-    {"name": "Oliver Bearman", "number": 87, "team": "Haas", "nationality": "British", "date_of_birth": "2005-05-08", "championships": 0, "wins": 0, "podiums": 0, "poles": 0, "bio": "Became the youngest British F1 driver when he debuted as a Ferrari sub in 2024.", "active": True},
-]
+
+def _build_teams(dataset_path: str) -> list[dict]:
+    """Return team documents for every constructor that raced in the latest
+    season found in the dataset, enriched with all-time championship counts."""
+
+    constructors = _read_csv(dataset_path, "constructors.csv")
+    races = _read_csv(dataset_path, "races.csv")
+    results = _read_csv(dataset_path, "results.csv")
+    con_standings = _read_csv(dataset_path, "constructor_standings.csv")
+
+    constructors_by_id = {c["constructorId"]: c for c in constructors}
+
+    # Latest season & its race IDs
+    latest_year = max(r["year"] for r in races)
+    latest_race_ids = {r["raceId"] for r in races if r["year"] == latest_year}
+
+    # Constructor IDs that raced in the latest season
+    active_cids = {r["constructorId"] for r in results
+                   if r["raceId"] in latest_race_ids}
+
+    # Constructor championship counts (position == 1 at final race of each year)
+    year_races: dict[str, list[int]] = defaultdict(list)
+    for r in races:
+        year_races[r["year"]].append(int(r["raceId"]))
+    final_race_ids = {str(max(rids)) for rids in year_races.values()}
+
+    champ_counts: dict[str, int] = defaultdict(int)
+    for s in con_standings:
+        if s["raceId"] in final_race_ids and s["position"] == "1":
+            champ_counts[s["constructorId"]] += 1
+
+    teams: list[dict] = []
+    for cid in sorted(active_cids, key=int):
+        c = constructors_by_id[cid]
+        teams.append({
+            "name": c["name"],
+            "full_name": "",
+            "base": "",
+            "team_principal": "",
+            "championships": champ_counts.get(cid, 0),
+            "first_entry": 0,
+            "car": "",
+            "engine": "",
+            "nationality": c.get("nationality", ""),
+            "active": True,
+        })
+    return teams
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  F1 TRIVIA FACTS
+#  BUILD DRIVERS FROM KAGGLE DATA
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _build_drivers(dataset_path: str) -> list[dict]:
+    """Return driver documents for every driver that raced in the latest
+    season, with career wins / podiums / poles / championships computed from
+    the full historical dataset."""
+
+    drivers_csv = _read_csv(dataset_path, "drivers.csv")
+    races = _read_csv(dataset_path, "races.csv")
+    results = _read_csv(dataset_path, "results.csv")
+    driver_standings = _read_csv(dataset_path, "driver_standings.csv")
+    constructors = _read_csv(dataset_path, "constructors.csv")
+
+    drivers_by_id = {d["driverId"]: d for d in drivers_csv}
+    constructors_by_id = {c["constructorId"]: c for c in constructors}
+
+    # Latest season
+    latest_year = max(r["year"] for r in races)
+    latest_race_ids = {r["raceId"] for r in races if r["year"] == latest_year}
+
+    # Driver → constructor mapping for latest season (last entry wins)
+    driver_team: dict[str, str] = {}
+    for r in results:
+        if r["raceId"] in latest_race_ids:
+            driver_team[r["driverId"]] = r["constructorId"]
+
+    active_dids = set(driver_team.keys())
+
+    # Career stats: wins, podiums, poles
+    career_wins: dict[str, int] = defaultdict(int)
+    career_podiums: dict[str, int] = defaultdict(int)
+    career_poles: dict[str, int] = defaultdict(int)
+    for r in results:
+        did = r["driverId"]
+        if did not in active_dids:
+            continue
+        if r["positionOrder"] == "1":
+            career_wins[did] += 1
+        if r["positionOrder"] in ("1", "2", "3"):
+            career_podiums[did] += 1
+        if r["grid"] == "1":
+            career_poles[did] += 1
+
+    # Championship counts
+    year_races: dict[str, list[int]] = defaultdict(list)
+    for r in races:
+        year_races[r["year"]].append(int(r["raceId"]))
+    final_race_ids = {str(max(rids)) for rids in year_races.values()}
+
+    champ_counts: dict[str, int] = defaultdict(int)
+    for s in driver_standings:
+        if s["raceId"] in final_race_ids and s["position"] == "1":
+            champ_counts[s["driverId"]] += 1
+
+    drivers: list[dict] = []
+    for did in sorted(active_dids, key=int):
+        d = drivers_by_id[did]
+        cid = driver_team[did]
+        team_name = constructors_by_id.get(cid, {}).get("name", "")
+        number_raw = d.get("number", "0")
+        number = int(number_raw) if number_raw not in ("\\N", "", None) else 0
+
+        drivers.append({
+            "name": f"{d['forename']} {d['surname']}",
+            "number": number,
+            "team": team_name,
+            "nationality": d.get("nationality", ""),
+            "date_of_birth": d.get("dob", ""),
+            "championships": champ_counts.get(did, 0),
+            "wins": career_wins.get(did, 0),
+            "podiums": career_podiums.get(did, 0),
+            "poles": career_poles.get(did, 0),
+            "bio": "",
+            "active": True,
+        })
+    return drivers
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  F1 TRIVIA FACTS  (hand-curated – not available in the Kaggle dataset)
 # ═══════════════════════════════════════════════════════════════════════════════
 FACTS = [
     {"content": "The first ever F1 race was the 1950 British Grand Prix at Silverstone, won by Giuseppe Farina.", "category": "history", "approved": True},
@@ -193,7 +211,11 @@ FACTS = [
 # ═══════════════════════════════════════════════════════════════════════════════
 #  SEED FUNCTION
 # ═══════════════════════════════════════════════════════════════════════════════
+
 async def seed():
+    # ── Download / cache the Kaggle dataset ──────────────────────────────────
+    dataset_path = _download_dataset()
+
     client = AsyncIOMotorClient(settings.MONGO_URI)
     db = client.get_database(settings.DB_NAME)
 
@@ -202,20 +224,22 @@ async def seed():
     # ── Teams ────────────────────────────────────────────────────────────────
     existing_teams = await db[collections.teams].count_documents({})
     if existing_teams == 0:
-        for t in TEAMS:
+        teams = _build_teams(dataset_path)
+        for t in teams:
             t["created_at"] = now
-        await db[collections.teams].insert_many(TEAMS)
-        print(f"✅  Seeded {len(TEAMS)} teams")
+        await db[collections.teams].insert_many(teams)
+        print(f"✅  Seeded {len(teams)} teams from Kaggle dataset")
     else:
         print(f"ℹ️  Teams collection already has {existing_teams} documents, skipping")
 
     # ── Drivers ──────────────────────────────────────────────────────────────
     existing_drivers = await db[collections.drivers].count_documents({})
     if existing_drivers == 0:
-        for d in DRIVERS:
+        drivers = _build_drivers(dataset_path)
+        for d in drivers:
             d["created_at"] = now
-        await db[collections.drivers].insert_many(DRIVERS)
-        print(f"✅  Seeded {len(DRIVERS)} drivers")
+        await db[collections.drivers].insert_many(drivers)
+        print(f"✅  Seeded {len(drivers)} drivers from Kaggle dataset")
     else:
         print(f"ℹ️  Drivers collection already has {existing_drivers} documents, skipping")
 
