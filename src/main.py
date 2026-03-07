@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from src.config.settings import settings
+from src.core.exceptions import F1FactsAPIError
 from src.routers.auth import router as auth_router
 from src.routers.calendar import router as calendar_router
 from src.routers.drivers import router as drivers_router
@@ -65,6 +66,15 @@ app.add_middleware(
 # ── Exception handlers ──────────────────────────────────────────────────────
 @app.exception_handler(HTTPException)
 async def http_exception_handler(_: Request, exc: HTTPException) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
+
+
+@app.exception_handler(F1FactsAPIError)
+async def f1_api_exception_handler(_: Request, exc: F1FactsAPIError) -> JSONResponse:
+    """Translate any custom F1FactsAPIError into a JSON response."""
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail},

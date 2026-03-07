@@ -1,8 +1,11 @@
 """Tests for /predictions endpoints."""
 
 from unittest.mock import AsyncMock, patch
-from fastapi import HTTPException
 
+from src.core.exceptions import (
+    DuplicatePredictionError,
+    PredictionNotFoundError,
+)
 from src.models.prediction import Prediction, LeaderboardEntry
 
 from .conftest import FAKE_PRED_ID, FAKE_DRIVER_ID, FAKE_USER_ID, TIMESTAMP
@@ -56,7 +59,7 @@ class TestGetPrediction:
 
     @patch("src.routers.predictions.get_prediction_by_id", new_callable=AsyncMock)
     def test_not_found(self, mock_get, auth_client):
-        mock_get.side_effect = HTTPException(404, "Prediction not found")
+        mock_get.side_effect = PredictionNotFoundError(FAKE_PRED_ID)
         resp = auth_client.get(f"/predictions/view/{FAKE_PRED_ID}")
         assert resp.status_code == 404
 
@@ -76,7 +79,7 @@ class TestCreatePrediction:
 
     @patch("src.routers.predictions.create_prediction_db", new_callable=AsyncMock)
     def test_duplicate_conflict(self, mock_create, auth_client):
-        mock_create.side_effect = HTTPException(409, "Already predicted")
+        mock_create.side_effect = DuplicatePredictionError("driver_championship", 2025)
         resp = auth_client.post("/predictions", json={
             "season": 2025, "category": "driver_championship",
             "predicted_id": FAKE_DRIVER_ID, "predicted_name": "Lewis Hamilton",
@@ -110,7 +113,7 @@ class TestUpdatePrediction:
 
     @patch("src.routers.predictions.update_prediction_db", new_callable=AsyncMock)
     def test_not_found(self, mock_update, auth_client):
-        mock_update.side_effect = HTTPException(404, "Prediction not found")
+        mock_update.side_effect = PredictionNotFoundError(FAKE_PRED_ID)
         resp = auth_client.patch(f"/predictions/{FAKE_PRED_ID}", json={"confidence": 5})
         assert resp.status_code == 404
 
@@ -125,7 +128,7 @@ class TestDeletePrediction:
 
     @patch("src.routers.predictions.delete_prediction_db", new_callable=AsyncMock)
     def test_not_found(self, mock_del, auth_client):
-        mock_del.side_effect = HTTPException(404, "Prediction not found")
+        mock_del.side_effect = PredictionNotFoundError(FAKE_PRED_ID)
         resp = auth_client.delete(f"/predictions/{FAKE_PRED_ID}")
         assert resp.status_code == 404
 

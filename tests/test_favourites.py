@@ -1,8 +1,8 @@
 """Tests for /favourites endpoints."""
 
 from unittest.mock import AsyncMock, patch
-from fastapi import HTTPException
 
+from src.core.exceptions import FavouriteListNotFoundError
 from src.models.favourite import FavouriteList
 
 from .conftest import FAKE_FAV_ID, FAKE_USER_ID, TIMESTAMP
@@ -48,7 +48,7 @@ class TestGetFavourite:
 
     @patch("src.routers.favourites.get_favourite_by_id", new_callable=AsyncMock)
     def test_not_found(self, mock_get, auth_client):
-        mock_get.side_effect = HTTPException(404, "Favourite list not found")
+        mock_get.side_effect = FavouriteListNotFoundError(FAKE_FAV_ID)
         resp = auth_client.get(f"/favourites/{FAKE_FAV_ID}")
         assert resp.status_code == 404
 

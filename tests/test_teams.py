@@ -1,8 +1,8 @@
 """Tests for /teams endpoints."""
 
 from unittest.mock import AsyncMock, patch
-from fastapi import HTTPException
 
+from src.core.exceptions import TeamNotFoundError
 from src.models.team import Team
 
 from .conftest import FAKE_TEAM_ID, TIMESTAMP
@@ -67,7 +67,7 @@ class TestGetTeam:
 
     @patch("src.routers.teams.get_team_by_id", new_callable=AsyncMock)
     def test_not_found(self, mock_get, client):
-        mock_get.side_effect = HTTPException(404, "Team not found")
+        mock_get.side_effect = TeamNotFoundError(FAKE_TEAM_ID)
         resp = client.get(f"/teams/{FAKE_TEAM_ID}")
         assert resp.status_code == 404
 

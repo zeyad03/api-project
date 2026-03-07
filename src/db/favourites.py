@@ -2,8 +2,12 @@
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from fastapi import HTTPException, status
 
+from src.core.exceptions import (
+    DuplicateFavouriteItemError,
+    EmptyUpdateError,
+    FavouriteListNotFoundError,
+)
 from src.db.collections import collections
 from src.models.favourite import FavouriteList, FavouriteListCreate, FavouriteListUpdate, AddFavouriteItem
 from src.models.common import utc_now
@@ -26,7 +30,7 @@ async def get_favourite_by_id(
         {"_id": ObjectId(fav_id), "user_id": user_id}
     )
     if not doc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Favourite list not found")
+        raise FavouriteListNotFoundError(fav_id)
     return FavouriteList(**doc)
 
 
@@ -44,13 +48,13 @@ async def update_favourite_db(
 ) -> FavouriteList:
     update_data = {k: v for k, v in update.model_dump().items() if v is not None}
     if not update_data:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No fields to update")
+        raise EmptyUpdateError("favourite list")
     update_data["updated_at"] = utc_now()
     result = await db[collections.favourites].update_one(
         {"_id": ObjectId(fav_id), "user_id": user_id}, {"$set": update_data}
     )
     if result.matched_count == 0:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Favourite list not found")
+        raise FavouriteListNotFoundError(fav_id)
     doc = await db[collections.favourites].find_one({"_id": ObjectId(fav_id)})
     return FavouriteList(**doc)
 
@@ -62,7 +66,7 @@ async def delete_favourite_db(
         {"_id": ObjectId(fav_id), "user_id": user_id}
     )
     if result.deleted_count == 0:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Favourite list not found")
+        raise FavouriteListNotFoundError(fav_id)
     return True
 
 
@@ -74,12 +78,12 @@ async def add_item_to_favourite(
         {"_id": ObjectId(fav_id), "user_id": user_id}
     )
     if not doc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Favourite list not found")
+        raise FavouriteListNotFoundError(fav_id)
 
     # Check for duplicates
     existing_items = doc.get("items", [])
     if any(i["item_id"] == item.item_id for i in existing_items):
-        raise HTTPException(status.HTTP_409_CONFLICT, "Item already in list")
+        raise DuplicateFavouriteItemError(item.name)
 
     await db[collections.favourites].update_one(
         {"_id": ObjectId(fav_id)},
@@ -103,6 +107,6 @@ async def remove_item_from_favourite(
         },
     )
     if result.matched_count == 0:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Favourite list not found")
+        raise FavouriteListNotFoundError(fav_id)
     doc = await db[collections.favourites].find_one({"_id": ObjectId(fav_id)})
     return FavouriteList(**doc)

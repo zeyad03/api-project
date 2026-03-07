@@ -4,8 +4,8 @@ import random
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from fastapi import HTTPException, status
 
+from src.core.exceptions import FactNotFoundError
 from src.db.collections import collections
 from src.models.fact import Fact, FactCreate
 
@@ -39,7 +39,7 @@ async def get_random_fact(
 async def get_fact_by_id(fact_id: str, db: AsyncIOMotorDatabase) -> Fact:
     doc = await db[collections.facts].find_one({"_id": ObjectId(fact_id)})
     if not doc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Fact not found")
+        raise FactNotFoundError(fact_id)
     return Fact(**doc)
 
 
@@ -57,7 +57,7 @@ async def approve_fact_db(fact_id: str, db: AsyncIOMotorDatabase) -> Fact:
         {"_id": ObjectId(fact_id)}, {"$set": {"approved": True}}
     )
     if result.matched_count == 0:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Fact not found")
+        raise FactNotFoundError(fact_id)
     doc = await db[collections.facts].find_one({"_id": ObjectId(fact_id)})
     return Fact(**doc)
 
@@ -67,7 +67,7 @@ async def like_fact_db(
 ) -> Fact:
     doc = await db[collections.facts].find_one({"_id": ObjectId(fact_id)})
     if not doc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Fact not found")
+        raise FactNotFoundError(fact_id)
     if user_id in doc.get("liked_by", []):
         # Unlike
         await db[collections.facts].update_one(
@@ -87,5 +87,5 @@ async def like_fact_db(
 async def delete_fact_db(fact_id: str, db: AsyncIOMotorDatabase) -> bool:
     result = await db[collections.facts].delete_one({"_id": ObjectId(fact_id)})
     if result.deleted_count == 0:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Fact not found")
+        raise FactNotFoundError(fact_id)
     return True

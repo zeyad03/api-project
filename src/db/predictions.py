@@ -2,8 +2,12 @@
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from fastapi import HTTPException, status
 
+from src.core.exceptions import (
+    DuplicatePredictionError,
+    EmptyUpdateError,
+    PredictionNotFoundError,
+)
 from src.db.collections import collections
 from src.models.prediction import Prediction, PredictionCreate, PredictionUpdate, LeaderboardEntry
 
@@ -24,7 +28,7 @@ async def get_user_predictions(
 async def get_prediction_by_id(pred_id: str, db: AsyncIOMotorDatabase) -> Prediction:
     doc = await db[collections.predictions].find_one({"_id": ObjectId(pred_id)})
     if not doc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Prediction not found")
+        raise PredictionNotFoundError(pred_id)
     return Prediction(**doc)
 
 
@@ -36,11 +40,7 @@ async def create_prediction_db(
         "user_id": user_id, "season": data.season, "category": data.category,
     })
     if existing:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"You already have a {data.category} prediction for {data.season}. "
-            "Update or delete it instead.",
-        )
+        raise DuplicatePredictionError(data.category, data.season)
     pred = Prediction(user_id=user_id, **data.model_dump())
     result = await db[collections.predictions].insert_one(pred.model_dump_mongo())
     doc = await db[collections.predictions].find_one({"_id": result.inserted_id})
@@ -52,12 +52,12 @@ async def update_prediction_db(
 ) -> Prediction:
     update_data = {k: v for k, v in update.model_dump().items() if v is not None}
     if not update_data:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No fields to update")
+        raise EmptyUpdateError("prediction")
     result = await db[collections.predictions].update_one(
         {"_id": ObjectId(pred_id), "user_id": user_id}, {"$set": update_data}
     )
     if result.matched_count == 0:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Prediction not found")
+        raise PredictionNotFoundError(pred_id)
     doc = await db[collections.predictions].find_one({"_id": ObjectId(pred_id)})
     return Prediction(**doc)
 
@@ -69,7 +69,7 @@ async def delete_prediction_db(
         {"_id": ObjectId(pred_id), "user_id": user_id}
     )
     if result.deleted_count == 0:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Prediction not found")
+        raise PredictionNotFoundError(pred_id)
     return True
 
 

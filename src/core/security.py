@@ -3,11 +3,12 @@
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
 from src.config.settings import settings
+from src.core.exceptions import AdminRequiredError, InvalidTokenError
 from src.models.user import TokenData
 
 # ── Password hashing ────────────────────────────────────────────────────────
@@ -36,11 +37,7 @@ def decode_token(token: str) -> TokenData:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
         return TokenData(**payload)
     except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise InvalidTokenError()
 
 
 # ── FastAPI dependencies ────────────────────────────────────────────────────
@@ -55,5 +52,5 @@ async def get_current_user(
 async def require_admin(current_user: TokenData = Depends(get_current_user)) -> TokenData:
     """Dependency – raises 403 unless the user is an admin."""
     if not current_user.is_admin:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin access required")
+        raise AdminRequiredError()
     return current_user

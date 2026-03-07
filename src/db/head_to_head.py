@@ -2,8 +2,8 @@
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from fastapi import HTTPException, status
 
+from src.core.exceptions import InvalidVoteError
 from src.db.collections import collections
 from src.models.head_to_head import HeadToHeadVote, HeadToHeadVoteCreate
 
@@ -18,7 +18,7 @@ async def cast_h2h_vote(
 ) -> HeadToHeadVote:
     d1, d2 = _matchup_key(data.driver1_id, data.driver2_id)
     if data.winner_id not in (data.driver1_id, data.driver2_id):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "winner_id must be one of the two drivers")
+        raise InvalidVoteError()
 
     # Upsert – one vote per user per matchup
     existing = await db[collections.head_to_head_votes].find_one(

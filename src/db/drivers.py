@@ -2,8 +2,8 @@
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from fastapi import HTTPException, status
 
+from src.core.exceptions import DriverNotFoundError, EmptyUpdateError
 from src.db.collections import collections
 from src.models.driver import Driver, DriverCreate, DriverUpdate
 
@@ -17,7 +17,7 @@ async def get_all_drivers(db: AsyncIOMotorDatabase, active_only: bool = False) -
 async def get_driver_by_id(driver_id: str, db: AsyncIOMotorDatabase) -> Driver:
     doc = await db[collections.drivers].find_one({"_id": ObjectId(driver_id)})
     if not doc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Driver not found")
+        raise DriverNotFoundError(driver_id)
     return Driver(**doc)
 
 
@@ -45,18 +45,18 @@ async def update_driver_db(
 ) -> Driver:
     update_data = {k: v for k, v in update.model_dump().items() if v is not None}
     if not update_data:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No fields to update")
+        raise EmptyUpdateError("driver")
     await db[collections.drivers].update_one(
         {"_id": ObjectId(driver_id)}, {"$set": update_data}
     )
     doc = await db[collections.drivers].find_one({"_id": ObjectId(driver_id)})
     if not doc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Driver not found")
+        raise DriverNotFoundError(driver_id)
     return Driver(**doc)
 
 
 async def delete_driver_db(driver_id: str, db: AsyncIOMotorDatabase) -> bool:
     result = await db[collections.drivers].delete_one({"_id": ObjectId(driver_id)})
     if result.deleted_count == 0:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Driver not found")
+        raise DriverNotFoundError(driver_id)
     return True

@@ -1,8 +1,8 @@
 """Tests for /hot-takes endpoints."""
 
 from unittest.mock import AsyncMock, patch
-from fastapi import HTTPException
 
+from src.core.exceptions import HotTakeNotFoundError
 from src.models.hot_take import HotTake
 from src.models.user import UserInDB
 
@@ -60,7 +60,7 @@ class TestGetHotTake:
 
     @patch("src.routers.hot_takes.get_hot_take_by_id", new_callable=AsyncMock)
     def test_not_found(self, mock_get, client):
-        mock_get.side_effect = HTTPException(404, "Hot take not found")
+        mock_get.side_effect = HotTakeNotFoundError(FAKE_TAKE_ID)
         resp = client.get(f"/hot-takes/{FAKE_TAKE_ID}")
         assert resp.status_code == 404
 

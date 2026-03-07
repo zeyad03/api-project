@@ -49,6 +49,6 @@ async def get_race(round_number: int):
     """Get details for a specific round."""
     race = next((r for r in CALENDAR_2025 if r["round"] == round_number), None)
     if not race:
-        from fastapi import HTTPException, status
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Round {round_number} not found")
+        from src.core.exceptions import RaceRoundNotFoundError
+        raise RaceRoundNotFoundError(round_number)
     return race

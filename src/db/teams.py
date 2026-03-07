@@ -2,8 +2,8 @@
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from fastapi import HTTPException, status
 
+from src.core.exceptions import EmptyUpdateError, TeamNotFoundError
 from src.db.collections import collections
 from src.models.team import Team, TeamCreate, TeamUpdate
 
@@ -17,7 +17,7 @@ async def get_all_teams(db: AsyncIOMotorDatabase, active_only: bool = False) -> 
 async def get_team_by_id(team_id: str, db: AsyncIOMotorDatabase) -> Team:
     doc = await db[collections.teams].find_one({"_id": ObjectId(team_id)})
     if not doc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Team not found")
+        raise TeamNotFoundError(team_id)
     return Team(**doc)
 
 
@@ -41,18 +41,18 @@ async def update_team_db(
 ) -> Team:
     update_data = {k: v for k, v in update.model_dump().items() if v is not None}
     if not update_data:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No fields to update")
+        raise EmptyUpdateError("team")
     await db[collections.teams].update_one(
         {"_id": ObjectId(team_id)}, {"$set": update_data}
     )
     doc = await db[collections.teams].find_one({"_id": ObjectId(team_id)})
     if not doc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Team not found")
+        raise TeamNotFoundError(team_id)
     return Team(**doc)
 
 
 async def delete_team_db(team_id: str, db: AsyncIOMotorDatabase) -> bool:
     result = await db[collections.teams].delete_one({"_id": ObjectId(team_id)})
     if result.deleted_count == 0:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Team not found")
+        raise TeamNotFoundError(team_id)
     return True

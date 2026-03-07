@@ -1,7 +1,6 @@
 """Tests for /trivia endpoints – facts CRUD & quiz."""
 
 from unittest.mock import AsyncMock, patch
-from fastapi import HTTPException
 
 from src.models.fact import Fact
 

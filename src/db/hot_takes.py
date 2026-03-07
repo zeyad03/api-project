@@ -2,8 +2,8 @@
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from fastapi import HTTPException, status
 
+from src.core.exceptions import HotTakeDeleteNotFoundError, HotTakeNotFoundError
 from src.db.collections import collections
 from src.models.hot_take import HotTake, HotTakeCreate
 
@@ -27,7 +27,7 @@ async def get_all_hot_takes(
 async def get_hot_take_by_id(take_id: str, db: AsyncIOMotorDatabase) -> HotTake:
     doc = await db[collections.hot_takes].find_one({"_id": ObjectId(take_id)})
     if not doc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Hot take not found")
+        raise HotTakeNotFoundError(take_id)
     return HotTake(**doc)
 
 
@@ -47,7 +47,7 @@ async def react_to_hot_take(
 ) -> HotTake:
     doc = await db[collections.hot_takes].find_one({"_id": ObjectId(take_id)})
     if not doc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Hot take not found")
+        raise HotTakeNotFoundError(take_id)
 
     agreed_by = doc.get("agreed_by", [])
     disagreed_by = doc.get("disagreed_by", [])
@@ -93,5 +93,5 @@ async def delete_hot_take_db(
         query["user_id"] = user_id
     result = await db[collections.hot_takes].delete_one(query)
     if result.deleted_count == 0:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Hot take not found or not yours")
+        raise HotTakeDeleteNotFoundError(take_id)
     return True

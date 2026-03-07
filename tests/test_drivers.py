@@ -76,8 +76,8 @@ class TestGetDriver:
 
     @patch("src.routers.drivers.get_driver_by_id", new_callable=AsyncMock)
     def test_not_found(self, mock_get, client):
-        from fastapi import HTTPException
-        mock_get.side_effect = HTTPException(404, "Driver not found")
+        from src.core.exceptions import DriverNotFoundError
+        mock_get.side_effect = DriverNotFoundError(FAKE_DRIVER_ID)
         resp = client.get(f"/drivers/{FAKE_DRIVER_ID}")
         assert resp.status_code == 404
 

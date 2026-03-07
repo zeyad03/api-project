@@ -1,8 +1,13 @@
 """Auth router – registration, login, profile."""
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 
+from src.core.exceptions import (
+    EmailAlreadyRegisteredError,
+    InvalidCredentialsError,
+    UsernameAlreadyTakenError,
+)
 from src.core.security import (
     create_access_token,
     get_current_user,
@@ -31,9 +36,9 @@ async def register(body: UserCreate, request: Request):
 
     # Check uniqueness
     if await get_user_by_username(body.username, db):
-        raise HTTPException(status.HTTP_409_CONFLICT, "Username already taken")
+        raise UsernameAlreadyTakenError(body.username)
     if await get_user_by_email(body.email, db):
-        raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
+        raise EmailAlreadyRegisteredError(body.email)
 
     user_doc = {
         "username": body.username,
@@ -57,7 +62,7 @@ async def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
     db = request.app.state.db
     user_in_db = await get_user_by_username(form.username, db)
     if not user_in_db or not verify_password(form.password, user_in_db.password_hash):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid username or password")
+        raise InvalidCredentialsError()
 
     token = create_access_token(
         {"sub": user_in_db.username, "user_id": str(user_in_db.id), "is_admin": user_in_db.is_admin}

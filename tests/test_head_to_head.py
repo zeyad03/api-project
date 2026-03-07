@@ -1,8 +1,8 @@
 """Tests for /head-to-head endpoints."""
 
 from unittest.mock import AsyncMock, patch
-from fastapi import HTTPException
 
+from src.core.exceptions import DriverNotFoundError
 from src.models.driver import Driver
 from src.models.head_to_head import HeadToHeadVote
 
@@ -50,7 +50,7 @@ class TestCompare:
 
     @patch("src.routers.head_to_head.get_driver_by_id", new_callable=AsyncMock)
     def test_driver_not_found(self, mock_driver, client):
-        mock_driver.side_effect = HTTPException(404, "Driver not found")
+        mock_driver.side_effect = DriverNotFoundError(FAKE_DRIVER_ID)
         resp = client.get(f"/head-to-head/compare/{FAKE_DRIVER_ID}/{FAKE_DRIVER2_ID}")
         assert resp.status_code == 404
 
