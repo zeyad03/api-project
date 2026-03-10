@@ -54,23 +54,20 @@ class TestJWT:
 
 # ── FastAPI dependencies ─────────────────────────────────────────────────────
 class TestDependencies:
-    @pytest.mark.asyncio
-    async def test_get_current_user_returns_token_data(self):
+    def test_get_current_user_returns_token_data(self):
         token = create_access_token(
             {"sub": "testuser", "user_id": "abc123", "is_admin": False}
         )
         request = MagicMock()
-        result = await get_current_user(request, token)
+        result = get_current_user(request, token)
         assert result.sub == "testuser"
 
-    @pytest.mark.asyncio
-    async def test_require_admin_passes_for_admin(self):
+    def test_require_admin_passes_for_admin(self):
         admin = TokenData(sub="admin", user_id="id", is_admin=True, exp=9999999999.0)
-        result = await require_admin(admin)
+        result = require_admin(admin)
         assert result.is_admin is True
 
-    @pytest.mark.asyncio
-    async def test_require_admin_rejects_non_admin(self):
+    def test_require_admin_rejects_non_admin(self):
         user = TokenData(sub="user", user_id="id", is_admin=False, exp=9999999999.0)
         with pytest.raises(AdminRequiredError):
-            await require_admin(user)
+            require_admin(user)
