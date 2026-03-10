@@ -21,14 +21,23 @@ A community-driven Formula 1 RESTful API built with **FastAPI** and **MongoDB**.
 ```
 cw1/
 ├── .env                      # Environment variables
+├── pyproject.toml            # Pytest / coverage configuration
 ├── requirements.txt          # Python dependencies
 ├── Makefile                  # Quick commands
 ├── README.md
+├── scripts/
+│   └── mongodb/
+│       └── onboard.py        # Admin user onboarding helper
+├── tests/                    # API and DB-layer test suite
+│   ├── conftest.py
+│   └── test_*.py
 └── src/
     ├── main.py               # FastAPI app entry point
     ├── config/
     │   └── settings.py       # Pydantic settings from .env
     ├── core/
+    │   ├── exceptions.py     # Custom API exception hierarchy
+    │   ├── rate_limit.py     # SlowAPI limiter configuration
     │   └── security.py       # JWT + password hashing
     ├── models/               # Pydantic models (schemas)
     │   ├── common.py         # Shared base classes
@@ -79,10 +88,18 @@ make install
 
 ### 2. Configure environment
 
-Copy the example and edit as needed:
+Create a `.env` file in the project root and add the settings you want to override:
 
 ```bash
-cp .env.example .env
+cat > .env <<'EOF'
+MONGO_URI=mongodb://localhost:27017
+DB_NAME=f1_facts_db
+JWT_SECRET=replace-me-with-a-long-random-secret
+TOKEN_EXPIRY_MINUTES=120
+ORIGINS=http://localhost:3000,http://localhost:5173
+RATE_LIMIT_DEFAULT=100/minute
+RATE_LIMIT_AUTH=5/minute
+EOF
 ```
 
 Key variables:
@@ -92,6 +109,9 @@ Key variables:
 | `DB_NAME` | `f1_facts_db` | Database name |
 | `JWT_SECRET` | random | Change this in production! |
 | `TOKEN_EXPIRY_MINUTES` | `120` | JWT expiry time |
+| `ORIGINS` | `http://localhost:3000,http://localhost:5173` | Allowed CORS origins |
+| `RATE_LIMIT_DEFAULT` | `100/minute` | Default per-IP API rate limit |
+| `RATE_LIMIT_AUTH` | `5/minute` | Stricter per-IP limit for auth endpoints |
 
 ### 3. Seed the database
 
@@ -137,7 +157,15 @@ make test-cov       # With coverage report
 
 Open **http://localhost:8000/docs** for the interactive Swagger UI.
 
-## 🛠️ Makefile Reference
+## Security Notes
+
+- The API uses JWT bearer authentication for protected endpoints.
+- Requests are rate-limited per IP using `slowapi`.
+- The default API-wide limit is `100/minute`.
+- The `/auth/register` and `/auth/login` endpoints use a stricter `5/minute` limit.
+- When a limit is exceeded, the API returns HTTP `429 Too Many Requests`.
+
+## Makefile Reference
 
 | Command | Description |
 |---|---|
@@ -157,83 +185,88 @@ Open **http://localhost:8000/docs** for the interactive Swagger UI.
 
 ## API Endpoints
 
+### Health
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/` | No | Health check and docs link |
+
 ### Auth
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| POST | `/auth/register` | ❌ | Create account |
-| POST | `/auth/login` | ❌ | Login (form-data), get JWT |
-| GET | `/auth/me` | ✅ | Get profile |
-| PATCH | `/auth/me` | ✅ | Update profile |
-| DELETE | `/auth/me` | ✅ | Delete account |
+| POST | `/auth/register` | No | Create account |
+| POST | `/auth/login` | No | Login (form-data), get JWT |
+| GET | `/auth/me` | Yes | Get profile |
+| PATCH | `/auth/me` | Yes | Update profile |
+| DELETE | `/auth/me` | Yes | Delete account |
 
 ### Drivers
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| GET | `/drivers` | ❌ | List all drivers |
-| GET | `/drivers/search?name=&team=` | ❌ | Search drivers |
-| GET | `/drivers/{id}` | ❌ | Get driver by ID |
-| POST | `/drivers` | 🔑 Admin | Create driver |
-| PATCH | `/drivers/{id}` | 🔑 Admin | Update driver |
-| DELETE | `/drivers/{id}` | 🔑 Admin | Delete driver |
+| GET | `/drivers` | No | List all drivers |
+| GET | `/drivers/search?name=&team=` | No | Search drivers |
+| GET | `/drivers/{id}` | No | Get driver by ID |
+| POST | `/drivers` | Admin | Create driver |
+| PATCH | `/drivers/{id}` | Admin | Update driver |
+| DELETE | `/drivers/{id}` | Admin | Delete driver |
 
 ### Teams
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| GET | `/teams` | ❌ | List all teams |
-| GET | `/teams/search?name=` | ❌ | Search teams |
-| GET | `/teams/{id}` | ❌ | Get team by ID |
-| POST | `/teams` | 🔑 Admin | Create team |
-| PATCH | `/teams/{id}` | 🔑 Admin | Update team |
-| DELETE | `/teams/{id}` | 🔑 Admin | Delete team |
+| GET | `/teams` | No | List all teams |
+| GET | `/teams/search?name=` | No | Search teams |
+| GET | `/teams/{id}` | No | Get team by ID |
+| POST | `/teams` | Admin | Create team |
+| PATCH | `/teams/{id}` | Admin | Update team |
+| DELETE | `/teams/{id}` | Admin | Delete team |
 
 ### Favourites
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| GET | `/favourites` | ✅ | List my favourite lists |
-| GET | `/favourites/{id}` | ✅ | Get a specific list |
-| POST | `/favourites` | ✅ | Create a new list |
-| PATCH | `/favourites/{id}` | ✅ | Rename a list |
-| DELETE | `/favourites/{id}` | ✅ | Delete a list |
-| POST | `/favourites/{id}/items` | ✅ | Add item to list |
-| DELETE | `/favourites/{id}/items/{item_id}` | ✅ | Remove item from list |
+| GET | `/favourites` | Yes | List my favourite lists |
+| GET | `/favourites/{id}` | Yes | Get a specific list |
+| POST | `/favourites` | Yes | Create a new list |
+| PATCH | `/favourites/{id}` | Yes | Rename a list |
+| DELETE | `/favourites/{id}` | Yes | Delete a list |
+| POST | `/favourites/{id}/items` | Yes | Add item to list |
+| DELETE | `/favourites/{id}/items/{item_id}` | Yes | Remove item from list |
 
 ### Predictions & Leaderboard
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| GET | `/predictions` | ✅ | List my predictions |
-| GET | `/predictions/view/{id}` | ✅ | Get a prediction |
-| POST | `/predictions` | ✅ | Submit prediction |
-| PATCH | `/predictions/{id}` | ✅ | Update prediction |
-| DELETE | `/predictions/{id}` | ✅ | Delete prediction |
-| GET | `/predictions/leaderboard/drivers?season=2025` | ❌ | Driver championship votes |
-| GET | `/predictions/leaderboard/constructors?season=2025` | ❌ | Constructor championship votes |
+| GET | `/predictions` | Yes | List my predictions |
+| GET | `/predictions/view/{id}` | Yes | Get a prediction |
+| POST | `/predictions` | Yes | Submit prediction |
+| PATCH | `/predictions/{id}` | Yes | Update prediction |
+| DELETE | `/predictions/{id}` | Yes | Delete prediction |
+| GET | `/predictions/leaderboard/drivers?season=2025` | No | Driver championship votes |
+| GET | `/predictions/leaderboard/constructors?season=2025` | No | Constructor championship votes |
 
 ### Trivia & Facts
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| GET | `/trivia/random` | ❌ | Random F1 fact |
-| GET | `/trivia` | ❌ | All approved facts |
-| POST | `/trivia` | ✅ | Submit a fact |
-| POST | `/trivia/{id}/like` | ✅ | Like / unlike |
-| PATCH | `/trivia/{id}/approve` | 🔑 Admin | Approve fact |
-| DELETE | `/trivia/{id}` | 🔑 Admin | Delete fact |
-| GET | `/trivia/quiz` | ❌ | Random quiz question |
-| POST | `/trivia/quiz/answer` | ❌ | Check quiz answer |
+| GET | `/trivia/random` | No | Random F1 fact |
+| GET | `/trivia` | No | All approved facts |
+| POST | `/trivia` | Yes | Submit a fact |
+| POST | `/trivia/{id}/like` | Yes | Like / unlike |
+| PATCH | `/trivia/{id}/approve` | Admin | Approve fact |
+| DELETE | `/trivia/{id}` | Admin | Delete fact |
+| GET | `/trivia/quiz` | No | Random quiz question |
+| POST | `/trivia/quiz/answer` | No | Check quiz answer |
 
 ### Head-to-Head
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| GET | `/head-to-head/compare/{d1}/{d2}` | ❌ | Compare two drivers + votes |
-| POST | `/head-to-head/vote` | ✅ | Vote on who's better |
+| GET | `/head-to-head/compare/{driver1_name}/{driver2_name}` | No | Compare two drivers by name + votes |
+| POST | `/head-to-head/vote` | Yes | Vote on who's better |
 
 ### Hot Takes
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| GET | `/hot-takes?sort_by=recent\|spicy\|popular` | ❌ | List hot takes |
-| GET | `/hot-takes/{id}` | ❌ | Get a hot take |
-| POST | `/hot-takes` | ✅ | Post a hot take |
-| POST | `/hot-takes/{id}/react` | ✅ | Agree / disagree |
-| DELETE | `/hot-takes/{id}` | ✅ | Delete (own or admin) |
+| GET | `/hot-takes?sort_by=recent\|spicy\|popular` | No | List hot takes |
+| GET | `/hot-takes/{id}` | No | Get a hot take |
+| POST | `/hot-takes` | Yes | Post a hot take |
+| POST | `/hot-takes/{id}/react` | Yes | Agree / disagree |
+| DELETE | `/hot-takes/{id}` | Yes | Delete (own or admin) |
 
 ## Authentication
 
@@ -244,6 +277,12 @@ Authorization: Bearer <your-token>
 ```
 
 In the Swagger UI, click the **Authorize** button and paste your token.
+
+For names in path parameters, URL-encode spaces. Example:
+
+```
+/head-to-head/compare/Lewis%20Hamilton/Max%20Verstappen
+```
 
 ## Example Usage
 
@@ -295,6 +334,11 @@ curl -X POST http://localhost:8000/trivia/quiz/answer \
   -d '{"question_id":"q01","answer":"Monza"}'
 ```
 
+### Compare two drivers by name
+```bash
+curl http://localhost:8000/head-to-head/compare/Lewis%20Hamilton/Max%20Verstappen
+```
+
 ## Tech Stack
 
 - **FastAPI** – Modern async Python web framework
@@ -302,6 +346,7 @@ curl -X POST http://localhost:8000/trivia/quiz/answer \
 - **Pydantic v2** – Data validation and serialization
 - **python-jose** – JWT token encoding/decoding
 - **bcrypt** – Secure password hashing (direct usage, no passlib wrapper)
+- **slowapi** – Per-IP request rate limiting and `429` handling
 - **kagglehub** – Downloads the [F1 Race Data](https://www.kaggle.com/datasets/jtrotman/formula-1-race-data) dataset for seeding
 
 ## License

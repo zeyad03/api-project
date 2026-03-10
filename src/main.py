@@ -32,13 +32,13 @@ async def lifespan(app: FastAPI):
     # Quick connection check
     try:
         await app.state.db.command("ping")
-        print(f"✅  Connected to MongoDB – database: {settings.DB_NAME}")
+        print(f"Connected to MongoDB - database: {settings.DB_NAME}")
     except Exception as exc:
-        print(f"❌  MongoDB connection failed: {exc}")
+        print(f"MongoDB connection failed: {exc}")
         raise
     yield
     client.close()
-    print("🛑  MongoDB connection closed")
+    print("MongoDB connection closed")
 
 
 # ── App instance ─────────────────────────────────────────────────────────────

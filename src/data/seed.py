@@ -28,7 +28,7 @@ from src.models.common import utc_now
 def _download_dataset() -> str:
     """Download (or use cached) Kaggle F1 race-data and return the path."""
     path = kagglehub.dataset_download("jtrotman/formula-1-race-data")
-    print(f"📦  Kaggle dataset path: {path}")
+    print(f"Kaggle dataset path: {path}")
     return path
 
 
