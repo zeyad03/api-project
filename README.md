@@ -2,22 +2,21 @@
 
 A community-driven Formula 1 RESTful API built with **FastAPI** and **MongoDB**. Track drivers & teams, build personal favourite lists, predict championship winners, play trivia quizzes, compare drivers head-to-head, and share your hottest F1 takes!
 
-## ✨ Features
+## Features
 
 | Feature | Description |
 |---|---|
-| 🔐 **Auth** | Register, login, JWT-based authentication |
-| 🏎️ **Drivers** | Full CRUD for the 2025 F1 driver grid (admin-managed, public read) |
-| 🏁 **Teams** | Full CRUD for the 2025 constructor lineup (admin-managed, public read) |
-| ⭐ **Favourites** | Create personal lists of favourite drivers and teams |
-| 🔮 **Predictions** | Predict the Driver & Constructor Champions with confidence ratings |
-| 📊 **Leaderboard** | Global aggregated view of who the community thinks will win |
-| 🧠 **Trivia & Facts** | Random F1 facts, user-submitted facts with like/approve, plus a quiz mode |
-| ⚔️ **Head-to-Head** | Compare any two drivers' stats side-by-side and vote on who's better |
-| 🔥 **Hot Takes** | Post controversial F1 opinions — others agree or disagree |
-| 📅 **Calendar** | 2025 race calendar with upcoming-race filtering |
+| **Auth** | Register, login, JWT-based authentication |
+| **Drivers** | Full CRUD for the 2025 F1 driver grid (admin-managed, public read) |
+| **Teams** | Full CRUD for the 2025 constructor lineup (admin-managed, public read) |
+| **Favourites** | Create personal lists of favourite drivers and teams |
+| **Predictions** | Predict the Driver & Constructor Champions with confidence ratings |
+| **Leaderboard** | Global aggregated view of who the community thinks will win |
+| **Trivia & Facts** | Random F1 facts, user-submitted facts with like/approve, plus a quiz mode |
+| **Head-to-Head** | Compare any two drivers' stats side-by-side and vote on who's better |
+| **Hot Takes** | Post controversial F1 opinions — others agree or disagree |
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 cw1/
@@ -59,13 +58,12 @@ cw1/
     │   ├── predictions.py
     │   ├── trivia.py
     │   ├── head_to_head.py
-    │   ├── hot_takes.py
-    │   └── calendar.py
+    │   └── hot_takes.py
     └── data/
         └── seed.py           # Database seeder (drivers, teams, facts, admin user)
 ```
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -157,9 +155,9 @@ Open **http://localhost:8000/docs** for the interactive Swagger UI.
 | `make lint` | Quick syntax check |
 | `make clean` | Remove `__pycache__` and `.pyc` files |
 
-## 📡 API Endpoints
+## API Endpoints
 
-### 🔐 Auth
+### Auth
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | POST | `/auth/register` | ❌ | Create account |
@@ -168,7 +166,7 @@ Open **http://localhost:8000/docs** for the interactive Swagger UI.
 | PATCH | `/auth/me` | ✅ | Update profile |
 | DELETE | `/auth/me` | ✅ | Delete account |
 
-### 🏎️ Drivers
+### Drivers
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | GET | `/drivers` | ❌ | List all drivers |
@@ -178,7 +176,7 @@ Open **http://localhost:8000/docs** for the interactive Swagger UI.
 | PATCH | `/drivers/{id}` | 🔑 Admin | Update driver |
 | DELETE | `/drivers/{id}` | 🔑 Admin | Delete driver |
 
-### 🏁 Teams
+### Teams
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | GET | `/teams` | ❌ | List all teams |
@@ -188,7 +186,7 @@ Open **http://localhost:8000/docs** for the interactive Swagger UI.
 | PATCH | `/teams/{id}` | 🔑 Admin | Update team |
 | DELETE | `/teams/{id}` | 🔑 Admin | Delete team |
 
-### ⭐ Favourites
+### Favourites
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | GET | `/favourites` | ✅ | List my favourite lists |
@@ -199,7 +197,7 @@ Open **http://localhost:8000/docs** for the interactive Swagger UI.
 | POST | `/favourites/{id}/items` | ✅ | Add item to list |
 | DELETE | `/favourites/{id}/items/{item_id}` | ✅ | Remove item from list |
 
-### 🔮 Predictions & 📊 Leaderboard
+### Predictions & Leaderboard
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | GET | `/predictions` | ✅ | List my predictions |
@@ -210,7 +208,7 @@ Open **http://localhost:8000/docs** for the interactive Swagger UI.
 | GET | `/predictions/leaderboard/drivers?season=2025` | ❌ | Driver championship votes |
 | GET | `/predictions/leaderboard/constructors?season=2025` | ❌ | Constructor championship votes |
 
-### 🧠 Trivia & Facts
+### Trivia & Facts
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | GET | `/trivia/random` | ❌ | Random F1 fact |
@@ -222,13 +220,13 @@ Open **http://localhost:8000/docs** for the interactive Swagger UI.
 | GET | `/trivia/quiz` | ❌ | Random quiz question |
 | POST | `/trivia/quiz/answer` | ❌ | Check quiz answer |
 
-### ⚔️ Head-to-Head
+### Head-to-Head
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | GET | `/head-to-head/compare/{d1}/{d2}` | ❌ | Compare two drivers + votes |
 | POST | `/head-to-head/vote` | ✅ | Vote on who's better |
 
-### 🔥 Hot Takes
+### Hot Takes
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | GET | `/hot-takes?sort_by=recent\|spicy\|popular` | ❌ | List hot takes |
@@ -237,14 +235,7 @@ Open **http://localhost:8000/docs** for the interactive Swagger UI.
 | POST | `/hot-takes/{id}/react` | ✅ | Agree / disagree |
 | DELETE | `/hot-takes/{id}` | ✅ | Delete (own or admin) |
 
-### 📅 Calendar
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| GET | `/calendar` | ❌ | 2025 race calendar |
-| GET | `/calendar?upcoming_only=true` | ❌ | Only upcoming races |
-| GET | `/calendar/{round}` | ❌ | Specific round details |
-
-## 🔒 Authentication
+## Authentication
 
 The API uses **JWT Bearer tokens**. After registering or logging in, include the token in requests:
 
@@ -252,9 +243,9 @@ The API uses **JWT Bearer tokens**. After registering or logging in, include the
 Authorization: Bearer <your-token>
 ```
 
-In the Swagger UI, click the 🔒 **Authorize** button and paste your token.
+In the Swagger UI, click the **Authorize** button and paste your token.
 
-## 📦 Example Usage
+## Example Usage
 
 ### Register & Login
 ```bash
@@ -304,7 +295,7 @@ curl -X POST http://localhost:8000/trivia/quiz/answer \
   -d '{"question_id":"q01","answer":"Monza"}'
 ```
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **FastAPI** – Modern async Python web framework
 - **MongoDB** + **Motor** – Async document database
@@ -313,6 +304,6 @@ curl -X POST http://localhost:8000/trivia/quiz/answer \
 - **bcrypt** – Secure password hashing (direct usage, no passlib wrapper)
 - **kagglehub** – Downloads the [F1 Race Data](https://www.kaggle.com/datasets/jtrotman/formula-1-race-data) dataset for seeding
 
-## 📄 License
+## License
 
 This project was built for COMP3011 Web Services Development coursework.
