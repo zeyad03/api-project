@@ -28,15 +28,15 @@ async def _resolve_driver_id(
     raise BadRequestError(f"Provide either {label}_id or {label}_name")
 
 
-@router.get("/compare/{driver1_id}/{driver2_id}", response_model=HeadToHeadComparison)
+@router.get("/compare/{driver1_name}/{driver2_name}", response_model=HeadToHeadComparison)
 async def compare_drivers(
-    driver1_id: str, driver2_id: str, request: Request
+    driver1_name: str, driver2_name: str, request: Request
 ):
     """Compare two drivers' stats side-by-side with community vote results."""
     db = request.app.state.db
-    d1 = await get_driver_by_id(driver1_id, db)
-    d2 = await get_driver_by_id(driver2_id, db)
-    votes = await get_h2h_results(driver1_id, driver2_id, db)
+    d1 = await get_driver_by_name(driver1_name, db)
+    d2 = await get_driver_by_name(driver2_name, db)
+    votes = await get_h2h_results(str(d1.id), str(d2.id), db)
     return HeadToHeadComparison(
         driver1=d1.model_dump(),
         driver2=d2.model_dump(),

@@ -31,7 +31,7 @@ def _vote(**overrides):
 
 class TestCompare:
     @patch("src.routers.head_to_head.get_h2h_results", new_callable=AsyncMock)
-    @patch("src.routers.head_to_head.get_driver_by_id", new_callable=AsyncMock)
+    @patch("src.routers.head_to_head.get_driver_by_name", new_callable=AsyncMock)
     def test_compare_two_drivers(self, mock_driver, mock_votes, client):
         mock_driver.side_effect = [
             _driver(FAKE_DRIVER_ID, "Lewis Hamilton"),
@@ -41,17 +41,17 @@ class TestCompare:
             "driver1_id": FAKE_DRIVER_ID, "driver2_id": FAKE_DRIVER2_ID,
             "driver1_votes": 5, "driver2_votes": 3, "total_votes": 8,
         }
-        resp = client.get(f"/head-to-head/compare/{FAKE_DRIVER_ID}/{FAKE_DRIVER2_ID}")
+        resp = client.get("/head-to-head/compare/Lewis%20Hamilton/Max%20Verstappen")
         assert resp.status_code == 200
         body = resp.json()
         assert body["driver1"]["name"] == "Lewis Hamilton"
         assert body["driver2"]["name"] == "Max Verstappen"
         assert body["community_votes"]["total_votes"] == 8
 
-    @patch("src.routers.head_to_head.get_driver_by_id", new_callable=AsyncMock)
+    @patch("src.routers.head_to_head.get_driver_by_name", new_callable=AsyncMock)
     def test_driver_not_found(self, mock_driver, client):
         mock_driver.side_effect = DriverNotFoundError(FAKE_DRIVER_ID)
-        resp = client.get(f"/head-to-head/compare/{FAKE_DRIVER_ID}/{FAKE_DRIVER2_ID}")
+        resp = client.get("/head-to-head/compare/Lewis%20Hamilton/Max%20Verstappen")
         assert resp.status_code == 404
 
 

@@ -14,7 +14,6 @@ from src.config.settings import settings
 from src.core.exceptions import F1FactsAPIError
 from src.core.rate_limit import limiter
 from src.routers.auth import router as auth_router
-from src.routers.calendar import router as calendar_router
 from src.routers.drivers import router as drivers_router
 from src.routers.favourites import router as favourites_router
 from src.routers.head_to_head import router as h2h_router
@@ -124,15 +123,14 @@ async def general_exception_handler(_: Request, exc: Exception) -> JSONResponse:
 
 
 # ── Register routers ────────────────────────────────────────────────────────
-app.include_router(auth_router, prefix="/auth", tags=["🔐 Auth"])
-app.include_router(drivers_router, prefix="/drivers", tags=["🏎️ Drivers"])
-app.include_router(teams_router, prefix="/teams", tags=["🏁 Teams"])
-app.include_router(favourites_router, prefix="/favourites", tags=["⭐ Favourites"])
-app.include_router(predictions_router, prefix="/predictions", tags=["🔮 Predictions"])
-app.include_router(trivia_router, prefix="/trivia", tags=["🧠 Trivia & Facts"])
-app.include_router(h2h_router, prefix="/head-to-head", tags=["⚔️ Head-to-Head"])
-app.include_router(hot_takes_router, prefix="/hot-takes", tags=["🔥 Hot Takes"])
-app.include_router(calendar_router, prefix="/calendar", tags=["📅 Calendar"])
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+app.include_router(drivers_router, prefix="/drivers", tags=["Drivers"])
+app.include_router(teams_router, prefix="/teams", tags=["Teams"])
+app.include_router(favourites_router, prefix="/favourites", tags=["Favourites"])
+app.include_router(predictions_router, prefix="/predictions", tags=["Predictions"])
+app.include_router(trivia_router, prefix="/trivia", tags=["Trivia & Facts"])
+app.include_router(h2h_router, prefix="/head-to-head", tags=["Head-to-Head"])
+app.include_router(hot_takes_router, prefix="/hot-takes", tags=["Hot Takes"])
 
 
 # ── Health check ─────────────────────────────────────────────────────────────
