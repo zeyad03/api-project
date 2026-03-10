@@ -41,7 +41,7 @@ def decode_token(token: str) -> TokenData:
 
 
 # ── FastAPI dependencies ────────────────────────────────────────────────────
-async def get_current_user(
+def get_current_user(
     request: Request, token: str = Depends(oauth2_scheme)
 ) -> TokenData:
     """Dependency – returns the authenticated user's token data."""
@@ -49,7 +49,7 @@ async def get_current_user(
     return user
 
 
-async def require_admin(current_user: TokenData = Depends(get_current_user)) -> TokenData:
+def require_admin(current_user: TokenData = Depends(get_current_user)) -> TokenData:
     """Dependency – raises 403 unless the user is an admin."""
     if not current_user.is_admin:
         raise AdminRequiredError()

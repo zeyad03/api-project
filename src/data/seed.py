@@ -94,6 +94,46 @@ def _build_teams(dataset_path: str) -> list[dict]:
 #  BUILD DRIVERS FROM KAGGLE DATA
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _compute_career_stats(results: list[dict], active_dids: set[str]) -> tuple[dict, dict, dict]:
+    """Compute career wins, podiums, and poles for active drivers."""
+    career_wins: dict[str, int] = defaultdict(int)
+    career_podiums: dict[str, int] = defaultdict(int)
+    career_poles: dict[str, int] = defaultdict(int)
+    
+    for r in results:
+        did = r["driverId"]
+        if did not in active_dids:
+            continue
+        if r["positionOrder"] == "1":
+            career_wins[did] += 1
+        if r["positionOrder"] in ("1", "2", "3"):
+            career_podiums[did] += 1
+        if r["grid"] == "1":
+            career_poles[did] += 1
+    
+    return career_wins, career_podiums, career_poles
+
+
+def _compute_championship_counts(races: list[dict], driver_standings: list[dict]) -> dict[str, int]:
+    """Compute championship counts for drivers."""
+    year_races: dict[str, list[int]] = defaultdict(list)
+    for r in races:
+        year_races[r["year"]].append(int(r["raceId"]))
+    final_race_ids = {str(max(rids)) for rids in year_races.values()}
+
+    champ_counts: dict[str, int] = defaultdict(int)
+    for s in driver_standings:
+        if s["raceId"] in final_race_ids and s["position"] == "1":
+            champ_counts[s["driverId"]] += 1
+    
+    return champ_counts
+
+
+def _parse_driver_number(number_raw: str) -> int:
+    """Parse driver number, returning 0 for invalid values."""
+    return int(number_raw) if number_raw not in ("\\N", "", None) else 0
+
+
 def _build_drivers(dataset_path: str) -> list[dict]:
     """Return driver documents for every driver that raced in the latest
     season, with career wins / podiums / poles / championships computed from
@@ -121,38 +161,17 @@ def _build_drivers(dataset_path: str) -> list[dict]:
     active_dids = set(driver_team.keys())
 
     # Career stats: wins, podiums, poles
-    career_wins: dict[str, int] = defaultdict(int)
-    career_podiums: dict[str, int] = defaultdict(int)
-    career_poles: dict[str, int] = defaultdict(int)
-    for r in results:
-        did = r["driverId"]
-        if did not in active_dids:
-            continue
-        if r["positionOrder"] == "1":
-            career_wins[did] += 1
-        if r["positionOrder"] in ("1", "2", "3"):
-            career_podiums[did] += 1
-        if r["grid"] == "1":
-            career_poles[did] += 1
+    career_wins, career_podiums, career_poles = _compute_career_stats(results, active_dids)
 
     # Championship counts
-    year_races: dict[str, list[int]] = defaultdict(list)
-    for r in races:
-        year_races[r["year"]].append(int(r["raceId"]))
-    final_race_ids = {str(max(rids)) for rids in year_races.values()}
-
-    champ_counts: dict[str, int] = defaultdict(int)
-    for s in driver_standings:
-        if s["raceId"] in final_race_ids and s["position"] == "1":
-            champ_counts[s["driverId"]] += 1
+    champ_counts = _compute_championship_counts(races, driver_standings)
 
     drivers: list[dict] = []
     for did in sorted(active_dids, key=int):
         d = drivers_by_id[did]
         cid = driver_team[did]
         team_name = constructors_by_id.get(cid, {}).get("name", "")
-        number_raw = d.get("number", "0")
-        number = int(number_raw) if number_raw not in ("\\N", "", None) else 0
+        number = _parse_driver_number(d.get("number", "0"))
 
         drivers.append({
             "name": f"{d['forename']} {d['surname']}",
@@ -169,6 +188,15 @@ def _build_drivers(dataset_path: str) -> list[dict]:
         })
     return drivers
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  TRIVIA FACTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+FACTS = [
+    {"text": "Lewis Hamilton has won more races than any other driver in F1 history."},
+    {"text": "The Monaco Grand Prix is held on a street circuit in Monte Carlo."},
+]
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  SEED FUNCTION

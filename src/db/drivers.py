@@ -7,6 +7,9 @@ from src.core.exceptions import DriverNotFoundError, EmptyUpdateError
 from src.db.collections import collections
 from src.models.driver import Driver, DriverCreate, DriverUpdate
 
+REGEX_OPERATOR = "$regex"
+REGEX_OPTIONS = "$options"
+
 
 async def get_all_drivers(db: AsyncIOMotorDatabase, active_only: bool = False) -> list[Driver]:
     query = {"active": True} if active_only else {}
@@ -24,7 +27,7 @@ async def get_driver_by_id(driver_id: str, db: AsyncIOMotorDatabase) -> Driver:
 async def get_driver_by_name(name: str, db: AsyncIOMotorDatabase) -> Driver:
     """Find a driver by exact name (case-insensitive)."""
     doc = await db[collections.drivers].find_one(
-        {"name": {"$regex": f"^{name}$", "$options": "i"}}
+        {"name": {REGEX_OPERATOR: f"^{name}$", REGEX_OPTIONS: "i"}}
     )
     if not doc:
         raise DriverNotFoundError(name)
@@ -36,9 +39,9 @@ async def search_drivers(
 ) -> list[Driver]:
     query = {}
     if name:
-        query["name"] = {"$regex": name, "$options": "i"}
+        query["name"] = {REGEX_OPERATOR: name, REGEX_OPTIONS: "i"}
     if team:
-        query["team"] = {"$regex": team, "$options": "i"}
+        query["team"] = {REGEX_OPERATOR: team, REGEX_OPTIONS: "i"}
     cursor = db[collections.drivers].find(query)
     return [Driver(**doc) async for doc in cursor]
 
