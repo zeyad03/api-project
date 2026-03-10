@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: f1-facts-api
+    runtime: docker
+    dockerContext: .
+    dockerfilePath: ./docker/Dockerfile
+    plan: free
+    autoDeploy: false
+    healthCheckPath: /
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: DB_NAME
+        value: f1_facts_db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: TOKEN_EXPIRY_MINUTES
+        value: "120"
+      - key: ORIGINS
+        sync: false
+      - key: RATE_LIMIT_DEFAULT
+        value: 100/minute
+      - key: RATE_LIMIT_AUTH
+        value: 5/minute

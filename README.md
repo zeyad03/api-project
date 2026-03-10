@@ -157,6 +157,113 @@ make test-cov       # With coverage report
 
 Open **http://localhost:8000/docs** for the interactive Swagger UI.
 
+## Deployment
+
+This repository is now set up for deployment to **Render** with **GitHub Actions** controlling when a deployment happens.
+
+### Deployment architecture
+
+- **App host:** Render web service using the included Dockerfile
+- **Database:** MongoDB Atlas (or another externally reachable MongoDB instance)
+- **CI/CD gate:** GitHub Actions runs your custom test script first
+- **Deploy rule:** only pushes to `main` deploy, and only if the test job passes
+
+### Files added for deployment
+
+- `docker/Dockerfile` — container image for the FastAPI app
+- `docker/.dockerignore` — Docker build exclusions
+- `render.yaml` — Render service blueprint with production env vars
+- `.github/workflows/ci-cd.yml` — test + deploy workflow
+- `scripts/ci/run-tests.example.sh` — sample test script you can copy and customise
+
+### 1. Create your CI test script
+
+Create this file in your repo:
+
+```bash
+mkdir -p scripts/ci
+cp scripts/ci/run-tests.example.sh scripts/ci/run-tests.sh
+chmod +x scripts/ci/run-tests.sh
+```
+
+Edit `scripts/ci/run-tests.sh` to run exactly the checks you want GitHub Actions to enforce before deployment.
+
+Example:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_ROOT"
+
+python -m pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=80
+```
+
+> The workflow calls `bash scripts/ci/run-tests.sh`, so deployment is blocked until that script exits successfully with at least `80%` coverage.
+
+### 2. Provision production services
+
+Before deploying, create:
+
+- a **MongoDB Atlas** cluster (or another hosted MongoDB)
+- a **Render** web service connected to this repository
+
+Use the included `render.yaml` when creating the Render service, or create the service manually with Docker enabled.
+
+### 3. Configure Render environment variables
+
+Set these in Render:
+
+| Variable | Required | Notes |
+|---|---|---|
+| `MONGO_URI` | Yes | Hosted MongoDB connection string, not localhost |
+| `DB_NAME` | Yes | Usually `f1_facts_db` |
+| `JWT_SECRET` | Yes | Long random secret for production |
+| `TOKEN_EXPIRY_MINUTES` | No | Defaults to `120` |
+| `ORIGINS` | Yes | Your frontend origin(s), comma-separated |
+| `RATE_LIMIT_DEFAULT` | No | Defaults to `100/minute` |
+| `RATE_LIMIT_AUTH` | No | Defaults to `5/minute` |
+
+### 4. Create the Render deploy hook secret in GitHub
+
+In Render, create a **Deploy Hook** for the service.
+
+Then in GitHub, add this repository secret:
+
+- `RENDER_DEPLOY_HOOK_URL` = your Render deploy hook URL
+
+GitHub path: **Settings → Secrets and variables → Actions → New repository secret**
+
+### 5. GitHub Actions behaviour
+
+The workflow in `.github/workflows/ci-cd.yml` does the following:
+
+- runs on every pull request
+- runs on every push to `main`
+- installs dependencies
+- executes `scripts/ci/run-tests.sh`
+- triggers Render deployment **only** when:
+  - the event is a push to `main`, and
+  - the test job succeeded
+
+### 6. Recommended first deployment flow
+
+1. Create `scripts/ci/run-tests.sh`
+2. Push the repo to GitHub
+3. Create the Render service
+4. Add Render environment variables
+5. Add the `RENDER_DEPLOY_HOOK_URL` GitHub secret
+6. Push to `main`
+
+Once that is done, future pushes to `main` will deploy automatically after your test script passes.
+
+### Important production note
+
+Your local default `MONGO_URI=mongodb://localhost:27017` will **not** work on an external host. Production must use a hosted MongoDB connection string, such as MongoDB Atlas.
+
 ## Security Notes
 
 - The API uses JWT bearer authentication for protected endpoints.
