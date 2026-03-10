@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     TOKEN_EXPIRY_MINUTES: int = 120
     ORIGINS: str = "http://localhost:3000,http://localhost:5173"
+    RATE_LIMIT_DEFAULT: str = "100/minute"
+    RATE_LIMIT_AUTH: str = "5/minute"
 
     def get_origins(self) -> list[str]:
         return [o.strip() for o in self.ORIGINS.split(",")]

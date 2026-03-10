@@ -3,11 +3,13 @@
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 
+from src.config.settings import settings
 from src.core.exceptions import (
     EmailAlreadyRegisteredError,
     InvalidCredentialsError,
     UsernameAlreadyTakenError,
 )
+from src.core.rate_limit import limiter
 from src.core.security import (
     create_access_token,
     get_current_user,
@@ -30,6 +32,7 @@ router = APIRouter()
 
 # ── Register ─────────────────────────────────────────────────────────────────
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def register(body: UserCreate, request: Request):
     """Create a new user account and return a JWT token."""
     db = request.app.state.db
@@ -57,6 +60,7 @@ async def register(body: UserCreate, request: Request):
 
 # ── Login ────────────────────────────────────────────────────────────────────
 @router.post("/login", response_model=Token)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
     """Authenticate with username & password (form-data) and return a JWT token."""
     db = request.app.state.db

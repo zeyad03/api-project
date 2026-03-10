@@ -6,8 +6,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 
 from src.main import app
+from src.core.rate_limit import limiter
 from src.core.security import get_current_user, require_admin
 from src.models.user import TokenData
+
+# Disable rate limiting during tests so requests are never throttled
+limiter.enabled = False
 
 # ── Fake IDs (valid 24-char hex ObjectId strings) ───────────────────────────
 FAKE_USER_ID = "507f1f77bcf86cd799439011"

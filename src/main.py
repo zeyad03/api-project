@@ -7,9 +7,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from src.config.settings import settings
 from src.core.exceptions import F1FactsAPIError
+from src.core.rate_limit import limiter
 from src.routers.auth import router as auth_router
 from src.routers.calendar import router as calendar_router
 from src.routers.drivers import router as drivers_router
@@ -50,6 +53,7 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+app.state.limiter = limiter
 
 
 # ── CORS ─────────────────────────────────────────────────────────────────────
@@ -61,9 +65,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SlowAPIMiddleware)
 
 
 # ── Exception handlers ──────────────────────────────────────────────────────
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(
+    _: Request, exc: RateLimitExceeded
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        content={"detail": f"Rate limit exceeded: {exc.detail}"},
+    )
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(_: Request, exc: HTTPException) -> JSONResponse:
     return JSONResponse(
