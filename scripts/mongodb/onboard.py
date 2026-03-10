@@ -21,8 +21,8 @@ from src.models.common import utc_now
 client = MongoClient(settings.MONGO_URI)
 db = client.get_database(settings.DB_NAME)
 
-print(f"🔌  Connected to MongoDB: {settings.MONGO_URI}")
-print(f"📂  Database: {settings.DB_NAME}\n")
+print(f"Connected to MongoDB: {settings.MONGO_URI}")
+print(f"Database: {settings.DB_NAME}\n")
 
 # ── Create admin user ───────────────────────────────────────────────────────
 admin = db[collections.users].find_one({"username": "admin"})
@@ -41,11 +41,11 @@ else:
             "created_at": now,
         }
     )
-    print("  ✅  Created admin user (username: admin, password: admin123)")
+    print("Created admin user (username: admin, password: admin123)")
 
 # ── Done ─────────────────────────────────────────────────────────────────────
 client.close()
-print("\n🏁  Onboarding complete!\n")
+print("\nOnboarding complete!\n")
 print("Next steps:")
 print("  • Run 'make seed' to populate drivers, teams, and facts from Kaggle data")
 print("  • Run 'make dev' to start the development server")

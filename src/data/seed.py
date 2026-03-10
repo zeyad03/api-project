@@ -218,9 +218,9 @@ async def seed():
         for t in teams:
             t["created_at"] = now
         await db[collections.teams].insert_many(teams)
-        print(f"✅  Seeded {len(teams)} teams from Kaggle dataset")
+        print(f"Seeded {len(teams)} teams from Kaggle dataset")
     else:
-        print(f"ℹ️  Teams collection already has {existing_teams} documents, skipping")
+        print(f"ℹTeams collection already has {existing_teams} documents, skipping")
 
     # ── Drivers ──────────────────────────────────────────────────────────────
     existing_drivers = await db[collections.drivers].count_documents({})
@@ -229,9 +229,9 @@ async def seed():
         for d in drivers:
             d["created_at"] = now
         await db[collections.drivers].insert_many(drivers)
-        print(f"✅  Seeded {len(drivers)} drivers from Kaggle dataset")
+        print(f"Seeded {len(drivers)} drivers from Kaggle dataset")
     else:
-        print(f"ℹ️  Drivers collection already has {existing_drivers} documents, skipping")
+        print(f"Drivers collection already has {existing_drivers} documents, skipping")
 
     # ── Facts ────────────────────────────────────────────────────────────────
     existing_facts = await db[collections.facts].count_documents({})
@@ -242,9 +242,9 @@ async def seed():
             f["likes"] = 0
             f["liked_by"] = []
         await db[collections.facts].insert_many(FACTS)
-        print(f"✅  Seeded {len(FACTS)} facts")
+        print(f"Seeded {len(FACTS)} facts")
     else:
-        print(f"ℹ️  Facts collection already has {existing_facts} documents, skipping")
+        print(f"Facts collection already has {existing_facts} documents, skipping")
 
     # ── Indexes ──────────────────────────────────────────────────────────────
     await db[collections.users].create_index("username", unique=True)
@@ -257,10 +257,10 @@ async def seed():
     await db[collections.head_to_head_votes].create_index(
         [("driver1_id", 1), ("driver2_id", 1), ("user_id", 1)], unique=True
     )
-    print("✅  Database indexes created")
+    print("Database indexes created")
 
     client.close()
-    print("\n🏁  Seed complete!")
+    print("\nSeed complete!")
 
 
 if __name__ == "__main__":
