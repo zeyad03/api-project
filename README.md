@@ -192,7 +192,14 @@ Open **http://localhost:8000/docs** for the interactive Swagger UI.
 
 ### 7. Use native MCP support
 
-This API now exposes a native MCP JSON-RPC endpoint at:
+This API supports both traditional REST clients and AI-native clients.
+
+- Use the REST endpoints for browsers, frontend apps, Swagger UI, and standard HTTP integrations.
+- Use MCP (Model Context Protocol) when an AI assistant, agent, or tool needs a structured way to discover capabilities and call your API safely.
+
+In practice, MCP matters because it gives AI clients a predictable JSON-RPC interface for tool discovery and execution, while the existing REST API remains unchanged for human and web consumers.
+
+The MCP surface is exposed at:
 
 - `POST /mcp` for protocol calls (`initialize`, `tools/list`, `tools/call`)
 - `GET /mcp` for basic discovery/health metadata
