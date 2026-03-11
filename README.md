@@ -93,7 +93,7 @@ cw1/
 │       ├── seasons.py        # Season browsing endpoints
 │       ├── teams.py          # CRUD + constructor stats/standings/results
 │       └── trivia.py
-├── tests/                    # API and DB-layer test suite
+├── tests/                    # Categorised pytest suite: unit, api, error_path, auth, integration
 │   ├── conftest.py
 │   └── test_*.py
 ├── Makefile                  # Quick commands
@@ -191,6 +191,37 @@ make test           # Run all tests (verbose)
 make test-fast      # Stop on first failure
 make test-cov       # With coverage report
 ```
+
+The test suite now demonstrates a clear testing strategy rather than just
+"tests exist". Tests are split into five categories using registered pytest
+markers:
+
+| Marker | Purpose |
+|---|---|
+| `unit` | Pure logic tests for models, helpers, security utilities, and DB-layer functions |
+| `api` | FastAPI endpoint tests via `TestClient` (request → response assertions) |
+| `error_path` | Negative / boundary tests for `400`, `401`, `403`, `404`, `409`, and `422` flows |
+| `auth` | Register / login / refresh / logout / profile / RBAC tests |
+| `integration` | Multi-step end-to-end style workflows across multiple endpoints |
+
+Run a specific category locally with pytest markers:
+
+```bash
+python -m pytest tests/ -m unit -v
+python -m pytest tests/ -m api -v
+python -m pytest tests/ -m error_path -v
+python -m pytest tests/ -m auth -v
+python -m pytest tests/ -m integration -v
+```
+
+The new integration-style coverage includes workflows such as:
+
+- register → login → refresh → create favourites / predictions / hot takes → cleanup
+- admin creates / updates / deletes a driver while public and regular-user access is verified
+- user submits a fact → admin approves it → user likes it → public can read it
+
+If you want a quick confidence pass before pushing, run the full suite once and
+then re-run just the category you changed.
 
 ### 6. Explore the API
 
@@ -358,6 +389,18 @@ python -m pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=
 
 > The workflow calls `bash scripts/ci/run-tests.sh`, so deployment is blocked until that script exits successfully with at least `80%` coverage.
 
+If you want CI output to reflect the testing strategy more explicitly, you can
+also split the run by marker before the final coverage pass, for example:
+
+```bash
+python -m pytest tests/ -m unit -v
+python -m pytest tests/ -m api -v
+python -m pytest tests/ -m error_path -v
+python -m pytest tests/ -m auth -v
+python -m pytest tests/ -m integration -v
+python -m pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=80
+```
+
 ### 2. Provision production services
 
 Before deploying, create:
@@ -486,6 +529,16 @@ Client
 | `make test-cov` | Run tests with coverage report |
 | `make lint` | Quick syntax check |
 | `make clean` | Remove `__pycache__` and `.pyc` files |
+
+For targeted runs, use pytest markers directly:
+
+```bash
+python -m pytest tests/ -m unit
+python -m pytest tests/ -m api
+python -m pytest tests/ -m error_path
+python -m pytest tests/ -m auth
+python -m pytest tests/ -m integration
+```
 
 ## API Endpoints
 

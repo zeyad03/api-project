@@ -1,3 +1,13 @@
+[tool.pytest.ini_options]
+markers = [
+    "unit: Pure logic tests – models, helpers, security utilities (no HTTP)",
+    "api: FastAPI endpoint tests via TestClient (request → response)",
+    "error_path: Negative / boundary tests – 400, 401, 403, 404, 409, 422",
+    "auth: Authentication & authorisation flow tests",
+    "integration: Multi-step end-to-end workflows (register → use → cleanup)",
+]
+asyncio_mode = "auto"
+
 [tool.coverage.run]
 source = ["src"]
 omit = ["src/data/seed.py"]

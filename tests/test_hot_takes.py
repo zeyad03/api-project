@@ -1,5 +1,9 @@
-"""Tests for /hot-takes endpoints."""
+"""Tests for /hot-takes endpoints.
 
+Category: **api** – HTTP request → response tests via TestClient.
+"""
+
+import pytest
 from unittest.mock import AsyncMock, patch
 
 from src.core.exceptions import HotTakeNotFoundError
@@ -7,6 +11,8 @@ from src.models.hot_take import HotTake
 from src.models.user import UserInDB
 
 from .conftest import FAKE_TAKE_ID, FAKE_USER_ID, TIMESTAMP
+
+pytestmark = pytest.mark.api
 
 
 def _take(**overrides):

@@ -1,11 +1,17 @@
-"""Tests for /favourites endpoints."""
+"""Tests for /favourites endpoints.
 
+Category: **api** – HTTP request → response tests via TestClient.
+"""
+
+import pytest
 from unittest.mock import AsyncMock, patch
 
 from src.core.exceptions import FavouriteListNotFoundError
 from src.models.favourite import FavouriteList
 
 from .conftest import FAKE_FAV_ID, FAKE_USER_ID, TIMESTAMP
+
+pytestmark = pytest.mark.api
 
 
 def _fav_list(**overrides):

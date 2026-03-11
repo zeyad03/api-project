@@ -1,4 +1,7 @@
-"""Tests for src/core/security.py – passwords, JWT, dependencies, RBAC."""
+"""Tests for src/core/security.py – passwords, JWT, dependencies, RBAC.
+
+Category: **unit** – pure security-utility logic, no HTTP.
+"""
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -20,6 +23,8 @@ from src.core.exceptions import (
     TokenRevokedError,
 )
 from src.models.user import TokenData, UserRole
+
+pytestmark = pytest.mark.unit
 
 
 # ── Password hashing ────────────────────────────────────────────────────────

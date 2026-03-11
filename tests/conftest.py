@@ -1,4 +1,21 @@
-"""Shared fixtures for the F1 Facts API test suite."""
+"""Shared fixtures for the F1 Facts API test suite.
+
+Testing strategy
+================
+Tests are categorised with ``pytest.mark`` labels so each category can
+be run in isolation (``pytest -m unit``, ``pytest -m api``, etc.).
+
+  * **unit**        – Pure-logic tests (models, security utils, DB-layer
+                      functions) that never touch a real HTTP server.
+  * **api**         – FastAPI endpoint tests via ``TestClient``: send a
+                      request, assert status code + response body.
+  * **error_path**  – Negative / boundary tests covering every HTTP error
+                      status the API can produce (400–422).
+  * **auth**        – Authentication & authorisation: register, login,
+                      token refresh, logout, RBAC guards.
+  * **integration** – Multi-step workflows that exercise several
+                      endpoints in sequence (register → use → cleanup).
+"""
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch

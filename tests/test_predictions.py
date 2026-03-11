@@ -1,5 +1,9 @@
-"""Tests for /predictions endpoints."""
+"""Tests for /predictions endpoints.
 
+Category: **api** – HTTP request → response tests via TestClient.
+"""
+
+import pytest
 from unittest.mock import AsyncMock, patch
 
 from src.core.exceptions import (
@@ -9,6 +13,8 @@ from src.core.exceptions import (
 from src.models.prediction import Prediction, LeaderboardEntry
 
 from .conftest import FAKE_PRED_ID, FAKE_DRIVER_ID, FAKE_USER_ID, TIMESTAMP
+
+pytestmark = pytest.mark.api
 
 
 def _prediction(**overrides):

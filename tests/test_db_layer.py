@@ -1,7 +1,13 @@
-"""Tests for src/db/ – database query functions with mocked Motor collections."""
+"""Tests for src/db/ – database query functions with mocked Motor collections.
+
+Category: **unit** – DB-layer functions tested in isolation with mock
+collections; no HTTP server or real MongoDB.
+"""
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+pytestmark = pytest.mark.unit
 
 from bson import ObjectId
 

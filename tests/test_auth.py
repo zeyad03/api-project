@@ -1,10 +1,16 @@
-"""Tests for /auth endpoints – register, login, refresh, logout, profile CRUD."""
+"""Tests for /auth endpoints – register, login, refresh, logout, profile CRUD.
 
+Category: **auth** – authentication & authorisation flow tests.
+"""
+
+import pytest
 from unittest.mock import AsyncMock, patch
 
 from src.models.user import User, UserInDB
 
 from .conftest import FAKE_USER_ID, TIMESTAMP
+
+pytestmark = pytest.mark.auth
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────

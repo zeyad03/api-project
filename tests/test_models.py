@@ -1,4 +1,7 @@
-"""Tests for model layer utilities and seeded document schemas."""
+"""Tests for model layer utilities and seeded document schemas.
+
+Category: **unit** – pure logic, no HTTP or database I/O.
+"""
 
 import pytest
 
@@ -10,6 +13,8 @@ from src.models.circuit import Circuit
 from src.models.result import RaceResult
 from src.models.season import Season
 from src.models.team import Team, ConstructorSeasonStat
+
+pytestmark = pytest.mark.unit
 
 
 class TestUtcNow:

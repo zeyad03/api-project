@@ -1,10 +1,16 @@
-"""Tests for /trivia endpoints – facts CRUD & quiz."""
+"""Tests for /trivia endpoints – facts CRUD & quiz.
 
+Category: **api** – HTTP request → response tests via TestClient.
+"""
+
+import pytest
 from unittest.mock import AsyncMock, patch
 
 from src.models.fact import Fact
 
 from .conftest import FAKE_FACT_ID, FAKE_USER_ID, TIMESTAMP
+
+pytestmark = pytest.mark.api
 
 
 def _fact(**overrides):

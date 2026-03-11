@@ -1,11 +1,17 @@
-"""Tests for /teams endpoints."""
+"""Tests for /teams endpoints.
 
+Category: **api** – HTTP request → response tests via TestClient.
+"""
+
+import pytest
 from unittest.mock import AsyncMock, patch
 
 from src.core.exceptions import TeamNotFoundError
 from src.models.team import Team
 
 from .conftest import FAKE_TEAM_ID, TIMESTAMP
+
+pytestmark = pytest.mark.api
 
 
 def _team(**overrides):

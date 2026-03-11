@@ -1,11 +1,17 @@
-"""Tests for native MCP endpoint (/mcp)."""
+"""Tests for native MCP endpoint (/mcp).
 
+Category: **api** – HTTP request → response tests via TestClient.
+"""
+
+import pytest
 from unittest.mock import AsyncMock, patch
 
 from src.core.security import create_access_token
 from src.models.driver import Driver
 
 from .conftest import FAKE_DRIVER_ID, TIMESTAMP
+
+pytestmark = pytest.mark.api
 
 
 def _driver() -> Driver:

@@ -1,4 +1,11 @@
-"""Tests for the root health-check endpoint."""
+"""Tests for the root health-check endpoint.
+
+Category: **api** – HTTP request → response tests via TestClient.
+"""
+
+import pytest
+
+pytestmark = pytest.mark.api
 
 
 class TestHealthCheck:

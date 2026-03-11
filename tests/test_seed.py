@@ -1,6 +1,11 @@
-"""Tests for the Kaggle seed data builders."""
+"""Tests for the Kaggle seed data builders.
+
+Category: **unit** – pure data-transformation logic, no HTTP or DB.
+"""
 
 import pytest
+
+pytestmark = pytest.mark.unit
 
 from src.data.seed import (
     _build_driver_season_stats,

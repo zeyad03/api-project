@@ -1,5 +1,9 @@
-"""Tests for /head-to-head endpoints."""
+"""Tests for /head-to-head endpoints.
 
+Category: **api** – HTTP request → response tests via TestClient.
+"""
+
+import pytest
 from unittest.mock import AsyncMock, patch
 
 from src.core.exceptions import DriverNotFoundError
@@ -9,6 +13,8 @@ from src.models.head_to_head import HeadToHeadVote
 from .conftest import (
     FAKE_DRIVER_ID, FAKE_DRIVER2_ID, FAKE_USER_ID, FAKE_VOTE_ID, TIMESTAMP,
 )
+
+pytestmark = pytest.mark.api
 
 
 def _driver(did=FAKE_DRIVER_ID, name="Lewis Hamilton", **kw):
