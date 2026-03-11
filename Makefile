@@ -42,7 +42,7 @@ clean:
 	find . -type f -name '*.pyc' -delete 2>/dev/null || true
 
 reseed:
-	mongosh $(DB_NAME) --eval "db.drivers.drop(); db.teams.drop(); db.facts.drop(); db.users.drop()"
+	$(PYTHON) -m scripts.mongodb.reset_db
 	$(PYTHON) -m src.data.seed
 
 DB_NAME ?= f1_facts_db

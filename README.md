@@ -115,7 +115,7 @@ Key variables:
 
 ### 3. Seed the database
 
-Downloads the [Kaggle F1 Race Data](https://www.kaggle.com/datasets/jtrotman/formula-1-race-data) dataset and populates the database with drivers, teams (including computed career stats and championship counts), 30 hand-curated trivia facts, and an admin user:
+Downloads the [Kaggle F1 Race Data](https://www.kaggle.com/datasets/jtrotman/formula-1-race-data) dataset and populates the database with current drivers and teams, historical circuits / seasons / races / results, compact lap-time and season-summary analytics, plus seeded trivia facts:
 
 ```bash
 make seed
@@ -123,6 +123,8 @@ make seed
 # Or to drop all collections and re-seed from scratch:
 make reseed
 ```
+
+`make reseed` now drops the whole configured database first, so it works for both local MongoDB and MongoDB Atlas when `MONGO_URI` points at your Atlas cluster.
 
 > Default admin credentials: `admin` / `admin123`
 
