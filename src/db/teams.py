@@ -5,7 +5,14 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.core.exceptions import EmptyUpdateError, TeamNotFoundError
 from src.db.collections import collections
-from src.models.team import Team, TeamCreate, TeamUpdate
+from src.models.team import (
+    ConstructorResult,
+    ConstructorSeasonStat,
+    ConstructorStanding,
+    Team,
+    TeamCreate,
+    TeamUpdate,
+)
 
 
 async def get_all_teams(db: AsyncIOMotorDatabase, active_only: bool = False) -> list[Team]:
@@ -56,3 +63,75 @@ async def delete_team_db(team_id: str, db: AsyncIOMotorDatabase) -> bool:
     if result.deleted_count == 0:
         raise TeamNotFoundError(team_id)
     return True
+
+
+async def get_constructor_season_stats(
+    db: AsyncIOMotorDatabase,
+    constructor_id: int | None = None,
+    season_year: int | None = None,
+) -> list[ConstructorSeasonStat]:
+    """Return constructor season stats, filtered by Kaggle constructor_id and/or season."""
+    query: dict = {}
+    if constructor_id is not None:
+        query["constructor_id"] = constructor_id
+    if season_year is not None:
+        query["season_year"] = season_year
+    cursor = (
+        db[collections.constructor_season_stats]
+        .find(query)
+        .sort([("season_year", -1)])
+    )
+    return [ConstructorSeasonStat(**doc) async for doc in cursor]
+
+
+async def get_team_stats_by_mongo_id(
+    team_mongo_id: str, db: AsyncIOMotorDatabase
+) -> list[ConstructorSeasonStat]:
+    """Fetch season stats for a team identified by their MongoDB _id."""
+    team = await get_team_by_id(team_mongo_id, db)
+    if team.kaggle_constructor_id == 0:
+        return []
+    return await get_constructor_season_stats(
+        db, constructor_id=team.kaggle_constructor_id
+    )
+
+
+async def get_constructor_standings(
+    db: AsyncIOMotorDatabase,
+    constructor_id: int | None = None,
+    season_year: int | None = None,
+    final_only: bool = False,
+) -> list[ConstructorStanding]:
+    """Return constructor standings snapshots."""
+    query: dict = {}
+    if constructor_id is not None:
+        query["constructor_id"] = constructor_id
+    if season_year is not None:
+        query["season_year"] = season_year
+    if final_only:
+        query["is_final_race"] = True
+    cursor = (
+        db[collections.constructor_standings]
+        .find(query)
+        .sort([("season_year", -1), ("round", 1)])
+    )
+    return [ConstructorStanding(**doc) async for doc in cursor]
+
+
+async def get_constructor_results(
+    db: AsyncIOMotorDatabase,
+    constructor_id: int | None = None,
+    season_year: int | None = None,
+) -> list[ConstructorResult]:
+    """Return constructor race results."""
+    query: dict = {}
+    if constructor_id is not None:
+        query["constructor_id"] = constructor_id
+    if season_year is not None:
+        query["season_year"] = season_year
+    cursor = (
+        db[collections.constructor_results]
+        .find(query)
+        .sort([("season_year", -1), ("round", 1)])
+    )
+    return [ConstructorResult(**doc) async for doc in cursor]

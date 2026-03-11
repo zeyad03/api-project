@@ -48,4 +48,41 @@ class MongoBase(BaseModel):
 class StatusResponse(BaseModel):
     """Generic status response."""
     status: str = "ok"
+
+
+# ── Shared mixins for historical / seeded documents ──────────────────────────
+
+class SeasonScoped(BaseModel):
+    """Common season/year fields shared by historical documents."""
+
+    season_year: int = Field(description="Championship season year")
+
+
+class RaceScoped(SeasonScoped):
+    """Common race identity fields shared by round-level documents."""
+
+    race_id: int = Field(description="Kaggle raceId")
+    round: int = Field(description="Round number in the season")
+    race_name: str = Field(description="Race name")
+
+
+class CircuitIdentity(BaseModel):
+    """Flat circuit reference fields used inside seeded documents."""
+
+    circuit_id: int = Field(description="Kaggle circuitId")
+    circuit_name: str = Field(default="", description="Circuit name")
+
+
+class DriverIdentity(BaseModel):
+    """Flat driver reference fields used inside seeded documents."""
+
+    driver_id: int = Field(description="Kaggle driverId")
+    driver_name: str = Field(description="Driver full name")
+
+
+class ConstructorIdentity(BaseModel):
+    """Flat constructor reference fields used inside seeded documents."""
+
+    constructor_id: int = Field(description="Kaggle constructorId")
+    constructor_name: str = Field(description="Constructor name")
     message: str = ""

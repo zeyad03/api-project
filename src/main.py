@@ -14,11 +14,15 @@ from src.config.settings import settings
 from src.core.exceptions import F1FactsAPIError
 from src.core.rate_limit import limiter
 from src.routers.auth import router as auth_router
+from src.routers.circuits import router as circuits_router
 from src.routers.drivers import router as drivers_router
 from src.routers.favourites import router as favourites_router
 from src.routers.head_to_head import router as h2h_router
 from src.routers.hot_takes import router as hot_takes_router
 from src.routers.predictions import router as predictions_router
+from src.routers.races import router as races_router
+from src.routers.results import router as results_router
+from src.routers.seasons import router as seasons_router
 from src.routers.teams import router as teams_router
 from src.routers.trivia import router as trivia_router
 
@@ -128,9 +132,13 @@ app.include_router(drivers_router, prefix="/drivers", tags=["Drivers"])
 app.include_router(teams_router, prefix="/teams", tags=["Teams"])
 app.include_router(favourites_router, prefix="/favourites", tags=["Favourites"])
 app.include_router(predictions_router, prefix="/predictions", tags=["Predictions"])
+app.include_router(circuits_router, prefix="/circuits", tags=["Circuits"])
+app.include_router(seasons_router, prefix="/seasons", tags=["Seasons"])
+app.include_router(races_router, prefix="/races", tags=["Races"])
+app.include_router(results_router, prefix="/results", tags=["Results"])
 app.include_router(trivia_router, prefix="/trivia", tags=["Trivia & Facts"])
-app.include_router(h2h_router, prefix="/head-to-head", tags=["Head-to-Head"])
 app.include_router(hot_takes_router, prefix="/hot-takes", tags=["Hot Takes"])
+app.include_router(h2h_router, prefix="/head-to-head", tags=["Head-to-Head"])
 
 
 # ── Health check ─────────────────────────────────────────────────────────────

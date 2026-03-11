@@ -1,8 +1,13 @@
-"""F1 Driver model."""
+"""F1 Driver model and season statistics."""
 
 from pydantic import BaseModel, Field
 
-from src.models.common import MongoBase
+from src.models.common import (
+    ConstructorIdentity,
+    DriverIdentity,
+    MongoBase,
+    SeasonScoped,
+)
 
 
 class Driver(MongoBase):
@@ -18,6 +23,9 @@ class Driver(MongoBase):
     poles: int = Field(default=0)
     bio: str = Field(default="")
     active: bool = Field(default=True)
+    kaggle_driver_id: int = Field(default=0, description="Original Kaggle driverId")
+    driver_ref: str = Field(default="", description="Kaggle driverRef slug")
+    code: str = Field(default="", description="3-letter driver code when available")
 
 
 class DriverCreate(BaseModel):
@@ -33,6 +41,9 @@ class DriverCreate(BaseModel):
     poles: int = 0
     bio: str = ""
     active: bool = True
+    kaggle_driver_id: int = 0
+    driver_ref: str = ""
+    code: str = ""
 
 
 class DriverUpdate(BaseModel):
@@ -47,3 +58,25 @@ class DriverUpdate(BaseModel):
     poles: int | None = None
     bio: str | None = None
     active: bool | None = None
+    kaggle_driver_id: int | None = None
+    driver_ref: str | None = None
+    code: str | None = None
+
+
+class DriverSeasonStat(MongoBase, SeasonScoped, DriverIdentity, ConstructorIdentity):
+    """Aggregated season performance for a driver."""
+
+    starts: int = Field(default=0)
+    wins: int = Field(default=0)
+    podiums: int = Field(default=0)
+    poles: int = Field(default=0)
+    race_points: float = Field(default=0.0)
+    sprint_points: float = Field(default=0.0)
+    sprint_wins: int = Field(default=0)
+    sprint_podiums: int = Field(default=0)
+    classified_finishes: int = Field(default=0)
+    dnfs: int = Field(default=0)
+    best_finish: int = Field(default=0)
+    championship_position: int = Field(default=0)
+    champion: bool = Field(default=False)
+    total_points: float = Field(default=0.0)

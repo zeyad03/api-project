@@ -1,4 +1,4 @@
-"""Drivers router – CRUD for F1 driver data."""
+"""Drivers router – CRUD for F1 driver data plus season statistics."""
 
 from fastapi import APIRouter, Depends, Query, Request, status
 
@@ -8,11 +8,13 @@ from src.db.drivers import (
     delete_driver_db,
     get_all_drivers,
     get_driver_by_id,
+    get_driver_season_stats,
+    get_driver_stats_by_mongo_id,
     search_drivers,
     update_driver_db,
 )
 from src.models.common import StatusResponse
-from src.models.driver import Driver, DriverCreate, DriverUpdate
+from src.models.driver import Driver, DriverCreate, DriverSeasonStat, DriverUpdate
 from src.models.user import TokenData
 
 router = APIRouter()
@@ -73,3 +75,30 @@ async def delete_driver(
     """Delete a driver (admin only)."""
     await delete_driver_db(driver_id, request.app.state.db)
     return StatusResponse(status="ok", message="Driver deleted")
+
+
+# ── Season statistics ────────────────────────────────────────────────────────
+
+@router.get("/{driver_id}/stats", response_model=list[DriverSeasonStat])
+async def driver_season_stats(
+    driver_id: str,
+    request: Request,
+    season_year: int | None = Query(None, description="Filter to a specific season"),
+):
+    """Get historical season stats for a driver (by MongoDB _id).
+
+    Returns aggregated season performance data including wins, podiums,
+    points, and championship positions across all seasons.
+    """
+    stats = await get_driver_stats_by_mongo_id(driver_id, request.app.state.db)
+    if season_year is not None:
+        stats = [s for s in stats if s.season_year == season_year]
+    return stats
+
+
+@router.get("/stats/season/{season_year}", response_model=list[DriverSeasonStat])
+async def all_driver_stats_for_season(season_year: int, request: Request):
+    """Get all driver season stats for a given championship year."""
+    return await get_driver_season_stats(
+        request.app.state.db, season_year=season_year
+    )

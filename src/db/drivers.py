@@ -5,7 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.core.exceptions import DriverNotFoundError, EmptyUpdateError
 from src.db.collections import collections
-from src.models.driver import Driver, DriverCreate, DriverUpdate
+from src.models.driver import Driver, DriverCreate, DriverSeasonStat, DriverUpdate
 
 REGEX_OPERATOR = "$regex"
 REGEX_OPTIONS = "$options"
@@ -73,3 +73,32 @@ async def delete_driver_db(driver_id: str, db: AsyncIOMotorDatabase) -> bool:
     if result.deleted_count == 0:
         raise DriverNotFoundError(driver_id)
     return True
+
+
+async def get_driver_season_stats(
+    db: AsyncIOMotorDatabase,
+    driver_id: int | None = None,
+    season_year: int | None = None,
+) -> list[DriverSeasonStat]:
+    """Return driver season stats, filtered by Kaggle driver_id and/or season."""
+    query: dict = {}
+    if driver_id is not None:
+        query["driver_id"] = driver_id
+    if season_year is not None:
+        query["season_year"] = season_year
+    cursor = (
+        db[collections.driver_season_stats]
+        .find(query)
+        .sort([("season_year", -1)])
+    )
+    return [DriverSeasonStat(**doc) async for doc in cursor]
+
+
+async def get_driver_stats_by_mongo_id(
+    driver_mongo_id: str, db: AsyncIOMotorDatabase
+) -> list[DriverSeasonStat]:
+    """Fetch season stats for a driver identified by their MongoDB _id."""
+    driver = await get_driver_by_id(driver_mongo_id, db)
+    if driver.kaggle_driver_id == 0:
+        return []
+    return await get_driver_season_stats(db, driver_id=driver.kaggle_driver_id)

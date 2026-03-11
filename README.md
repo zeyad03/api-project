@@ -7,8 +7,12 @@ A community-driven Formula 1 RESTful API built with **FastAPI** and **MongoDB**.
 | Feature | Description |
 |---|---|
 | **Auth** | Register, login, JWT-based authentication |
-| **Drivers** | Full CRUD for the 2025 F1 driver grid (admin-managed, public read) |
-| **Teams** | Full CRUD for the 2025 constructor lineup (admin-managed, public read) |
+| **Drivers** | Full CRUD for the 2025 F1 driver grid (admin-managed, public read) + historical season stats |
+| **Teams** | Full CRUD for the 2025 constructor lineup (admin-managed, public read) + standings, results & season stats |
+| **Circuits** | Browse all F1 circuits/venues with location, country, and active-status filtering |
+| **Seasons** | Explore every championship season with champion info and calendar metadata |
+| **Races** | Full race calendar with winner info, filterable by season and circuit |
+| **Results** | Race results, sprint results, and lap-time analytics with flexible filtering |
 | **Favourites** | Create personal lists of favourite drivers and teams |
 | **Predictions** | Predict the Driver & Constructor Champions with confidence ratings |
 | **Leaderboard** | Global aggregated view of who the community thinks will win |
@@ -20,56 +24,75 @@ A community-driven Formula 1 RESTful API built with **FastAPI** and **MongoDB**.
 
 ```
 cw1/
-├── .env                      # Environment variables
-├── pyproject.toml            # Pytest / coverage configuration
-├── requirements.txt          # Python dependencies
-├── Makefile                  # Quick commands
-├── README.md
+├── .github/                  # GitHub Actions workflows
+├── docker/
+│   ├── .dockerignore
+│   └── Dockerfile            # Container image for deployment
 ├── scripts/
+│   ├── ci/
+│   │   └── run-tests.sh      # CI test entrypoint used by GitHub Actions
 │   └── mongodb/
-│       └── onboard.py        # Admin user onboarding helper
+│       ├── onboard.py        # Admin user onboarding helper
+│       └── reset_db.py       # Drop/reset database helper
+├── src/
+│   ├── main.py               # FastAPI app entry point
+│   ├── config/
+│   │   └── settings.py       # Pydantic settings from .env
+│   ├── core/
+│   │   ├── exceptions.py     # Custom API exception hierarchy
+│   │   ├── rate_limit.py     # SlowAPI limiter configuration
+│   │   └── security.py       # JWT + password hashing
+│   ├── data/
+│   │   └── seed.py           # Kaggle-based seeder for grid + historical data
+│   ├── db/                   # MongoDB query functions
+│   │   ├── collections.py    # Collection name constants
+│   │   ├── circuits.py       # Circuit queries
+│   │   ├── drivers.py        # Driver CRUD + season stats queries
+│   │   ├── facts.py
+│   │   ├── favourites.py
+│   │   ├── head_to_head.py
+│   │   ├── hot_takes.py
+│   │   ├── predictions.py
+│   │   ├── races.py          # Race + status queries
+│   │   ├── results.py        # Race/sprint result + lap-time queries
+│   │   ├── seasons.py        # Season queries
+│   │   ├── teams.py          # Team CRUD + constructor history queries
+│   │   └── users.py
+│   ├── models/               # Pydantic models (schemas)
+│   │   ├── circuit.py        # Circuit model
+│   │   ├── common.py         # Shared base classes & historical mixins
+│   │   ├── driver.py         # Driver + DriverSeasonStat
+│   │   ├── fact.py
+│   │   ├── favourite.py
+│   │   ├── head_to_head.py
+│   │   ├── hot_take.py
+│   │   ├── prediction.py
+│   │   ├── race.py           # Race + Status models
+│   │   ├── result.py         # RaceResult, SprintResult, LapTimeSummary
+│   │   ├── season.py         # Season model
+│   │   ├── team.py           # Team + constructor history models
+│   │   └── user.py
+│   └── routers/              # API route handlers
+│       ├── auth.py
+│       ├── circuits.py       # List, search, and fetch circuits
+│       ├── drivers.py        # CRUD + driver season stats
+│       ├── favourites.py
+│       ├── head_to_head.py
+│       ├── hot_takes.py
+│       ├── predictions.py
+│       ├── races.py          # Races + finish status endpoints
+│       ├── results.py        # Race results, sprint results, lap-times
+│       ├── seasons.py        # Season browsing endpoints
+│       ├── teams.py          # CRUD + constructor stats/standings/results
+│       └── trivia.py
 ├── tests/                    # API and DB-layer test suite
 │   ├── conftest.py
 │   └── test_*.py
-└── src/
-    ├── main.py               # FastAPI app entry point
-    ├── config/
-    │   └── settings.py       # Pydantic settings from .env
-    ├── core/
-    │   ├── exceptions.py     # Custom API exception hierarchy
-    │   ├── rate_limit.py     # SlowAPI limiter configuration
-    │   └── security.py       # JWT + password hashing
-    ├── models/               # Pydantic models (schemas)
-    │   ├── common.py         # Shared base classes
-    │   ├── user.py
-    │   ├── driver.py
-    │   ├── team.py
-    │   ├── favourite.py
-    │   ├── prediction.py
-    │   ├── fact.py
-    │   ├── head_to_head.py
-    │   └── hot_take.py
-    ├── db/                   # MongoDB query functions
-    │   ├── collections.py    # Collection name constants
-    │   ├── users.py
-    │   ├── drivers.py
-    │   ├── teams.py
-    │   ├── favourites.py
-    │   ├── predictions.py
-    │   ├── facts.py
-    │   ├── head_to_head.py
-    │   └── hot_takes.py
-    ├── routers/              # API route handlers
-    │   ├── auth.py
-    │   ├── drivers.py
-    │   ├── teams.py
-    │   ├── favourites.py
-    │   ├── predictions.py
-    │   ├── trivia.py
-    │   ├── head_to_head.py
-    │   └── hot_takes.py
-    └── data/
-        └── seed.py           # Database seeder (drivers, teams, facts, admin user)
+├── Makefile                  # Quick commands
+├── pyproject.toml            # Pytest / coverage configuration
+├── README.md
+├── render.yaml               # Render deployment blueprint
+└── requirements.txt          # Python dependencies
 ```
 
 ## Getting Started
@@ -317,6 +340,8 @@ Your local default `MONGO_URI=mongodb://localhost:27017` will **not** work on an
 | POST | `/drivers` | Admin | Create driver |
 | PATCH | `/drivers/{id}` | Admin | Update driver |
 | DELETE | `/drivers/{id}` | Admin | Delete driver |
+| GET | `/drivers/{id}/stats?season_year=` | No | Historical season stats for a driver |
+| GET | `/drivers/stats/season/{year}` | No | All driver stats for a season |
 
 ### Teams
 | Method | Endpoint | Auth | Description |
@@ -327,6 +352,38 @@ Your local default `MONGO_URI=mongodb://localhost:27017` will **not** work on an
 | POST | `/teams` | Admin | Create team |
 | PATCH | `/teams/{id}` | Admin | Update team |
 | DELETE | `/teams/{id}` | Admin | Delete team |
+| GET | `/teams/{id}/stats?season_year=` | No | Historical season stats for a team |
+| GET | `/teams/stats/season/{year}` | No | All constructor stats for a season |
+| GET | `/teams/{id}/standings?season_year=&final_only=` | No | Championship standings history |
+| GET | `/teams/{id}/results?season_year=` | No | Constructor race results history |
+
+### Circuits
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/circuits?active_only=&country=` | No | List all circuits |
+| GET | `/circuits/search?name=&country=` | No | Search circuits |
+| GET | `/circuits/{circuit_id}` | No | Get circuit by Kaggle circuitId |
+
+### Seasons
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/seasons?start_year=&end_year=` | No | List all seasons (newest first) |
+| GET | `/seasons/{year}` | No | Get a single season by year |
+
+### Races
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/races?season_year=&circuit_id=` | No | List races |
+| GET | `/races/statuses` | No | List all finish status codes |
+| GET | `/races/{race_id}` | No | Get race by Kaggle raceId |
+| GET | `/races/season/{year}/round/{round}` | No | Get race by season and round |
+
+### Results
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/results/race?race_id=&season_year=&driver_id=&constructor_id=&limit=` | No | Race results |
+| GET | `/results/sprint?race_id=&season_year=&driver_id=&limit=` | No | Sprint results |
+| GET | `/results/lap-times?race_id=&driver_id=&season_year=&limit=` | No | Lap-time summaries |
 
 ### Favourites
 | Method | Endpoint | Auth | Description |
