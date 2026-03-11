@@ -19,7 +19,7 @@ from src.routers.drivers import router as drivers_router
 from src.routers.favourites import router as favourites_router
 from src.routers.head_to_head import router as h2h_router
 from src.routers.hot_takes import router as hot_takes_router
-from src.routers.mcp import router as mcp_router
+from src.mcp import router as mcp_router
 from src.routers.predictions import router as predictions_router
 from src.routers.races import router as races_router
 from src.routers.results import router as results_router

@@ -37,6 +37,11 @@ cw1/
 │       └── reset_db.py       # Drop/reset database helper
 ├── src/
 │   ├── main.py               # FastAPI app entry point
+│   ├── mcp/                  # Native MCP package
+│   │   ├── __init__.py       # Exports MCP router
+│   │   ├── auth.py           # MCP auth helpers
+│   │   ├── server.py         # JSON-RPC protocol + MCP routes
+│   │   └── tools.py          # MCP tool schemas, handlers, registry
 │   ├── config/
 │   │   └── settings.py       # Pydantic settings from .env
 │   ├── core/
@@ -73,7 +78,7 @@ cw1/
 │   │   ├── season.py         # Season model
 │   │   ├── team.py           # Team + constructor history models
 │   │   └── user.py
-│   └── routers/              # API route handlers
+│   └── routers/              # REST API route handlers
 │       ├── auth.py
 │       ├── circuits.py       # List, search, and fetch circuits
 │       ├── drivers.py        # CRUD + driver season stats
@@ -192,18 +197,41 @@ This API now exposes a native MCP JSON-RPC endpoint at:
 - `POST /mcp` for protocol calls (`initialize`, `tools/list`, `tools/call`)
 - `GET /mcp` for basic discovery/health metadata
 
+The implementation is now modularised under `src/mcp/`:
+
+- `src/mcp/server.py` handles JSON-RPC validation, routing, and FastAPI integration
+- `src/mcp/tools.py` contains the MCP tool schemas and handlers
+- `src/mcp/auth.py` contains optional JWT auth enforcement for `tools/call`
+
+All MCP tools are read-only and mirror the same `src.db` query functions used by the public REST API, so MCP responses stay consistent with the rest of the application.
+
 Currently exposed read-only MCP tools:
 
 - `list_drivers`
 - `search_drivers`
+- `get_driver_season_stats`
 - `list_teams`
+- `search_teams`
+- `list_circuits`
+- `search_circuits`
+- `list_seasons`
 - `list_races`
+- `list_race_results`
+- `get_random_fact`
+- `list_facts`
+- `get_prediction_leaderboard`
 
 Authentication behavior:
 
 - `initialize` and `tools/list` are always public.
 - `tools/call` is public by default.
 - Set `MCP_REQUIRE_AUTH=true` to require JWT Bearer auth on `tools/call`.
+- When auth is enabled, send `Authorization: Bearer <JWT>` exactly like the protected REST endpoints.
+
+Swagger UI notes:
+
+- `POST /mcp` now has a proper request body schema via the `MCPRequest` model.
+- You can test `initialize`, `tools/list`, and `tools/call` directly from `/docs` by editing the JSON body.
 
 Example MCP `initialize` request:
 
@@ -225,6 +253,49 @@ Example MCP `tools/list` request:
   "method": "tools/list",
   "params": {}
 }
+```
+
+Example MCP `tools/call` request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "list_drivers",
+    "arguments": {
+      "active_only": true,
+      "limit": 5
+    }
+  }
+}
+```
+
+Example authenticated MCP request:
+
+```bash
+curl -X POST http://localhost:8000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <JWT>" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 4,
+    "method": "tools/call",
+    "params": {
+      "name": "get_prediction_leaderboard",
+      "arguments": {
+        "category": "driver_championship",
+        "season": 2025
+      }
+    }
+  }'
+```
+
+Run MCP-specific tests with:
+
+```bash
+python -m pytest tests/test_mcp.py -v
 ```
 
 ## Deployment
