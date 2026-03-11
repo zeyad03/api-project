@@ -48,6 +48,7 @@ class MongoBase(BaseModel):
 class StatusResponse(BaseModel):
     """Generic status response."""
     status: str = "ok"
+    message: str = ""
 
 
 # ── Shared mixins for historical / seeded documents ──────────────────────────
@@ -85,4 +86,3 @@ class ConstructorIdentity(BaseModel):
 
     constructor_id: int = Field(description="Kaggle constructorId")
     constructor_name: str = Field(description="Constructor name")
-    message: str = ""
