@@ -19,6 +19,7 @@ from src.routers.drivers import router as drivers_router
 from src.routers.favourites import router as favourites_router
 from src.routers.head_to_head import router as h2h_router
 from src.routers.hot_takes import router as hot_takes_router
+from src.routers.mcp import router as mcp_router
 from src.routers.predictions import router as predictions_router
 from src.routers.races import router as races_router
 from src.routers.results import router as results_router
@@ -139,6 +140,7 @@ app.include_router(results_router, prefix="/results", tags=["Results"])
 app.include_router(trivia_router, prefix="/trivia", tags=["Trivia & Facts"])
 app.include_router(hot_takes_router, prefix="/hot-takes", tags=["Hot Takes"])
 app.include_router(h2h_router, prefix="/head-to-head", tags=["Head-to-Head"])
+app.include_router(mcp_router, prefix="/mcp", tags=["MCP"])
 
 
 # ── Health check ─────────────────────────────────────────────────────────────

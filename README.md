@@ -19,6 +19,7 @@ A community-driven Formula 1 RESTful API built with **FastAPI** and **MongoDB**.
 | **Trivia & Facts** | Random F1 facts, user-submitted facts with like/approve, plus a quiz mode |
 | **Head-to-Head** | Compare any two drivers' stats side-by-side and vote on who's better |
 | **Hot Takes** | Post controversial F1 opinions — others agree or disagree |
+| **Native MCP** | Built-in Model Context Protocol endpoint (`/mcp`) for AI tools/agents |
 
 ## Project Structure
 
@@ -122,6 +123,7 @@ TOKEN_EXPIRY_MINUTES=120
 ORIGINS=http://localhost:3000,http://localhost:5173
 RATE_LIMIT_DEFAULT=100/minute
 RATE_LIMIT_AUTH=5/minute
+MCP_REQUIRE_AUTH=false
 EOF
 ```
 
@@ -135,6 +137,7 @@ Key variables:
 | `ORIGINS` | `http://localhost:3000,http://localhost:5173` | Allowed CORS origins |
 | `RATE_LIMIT_DEFAULT` | `100/minute` | Default per-IP API rate limit |
 | `RATE_LIMIT_AUTH` | `5/minute` | Stricter per-IP limit for auth endpoints |
+| `MCP_REQUIRE_AUTH` | `false` | Require `Authorization: Bearer <JWT>` for MCP `tools/call` |
 
 ### 3. Seed the database
 
@@ -181,6 +184,48 @@ make test-cov       # With coverage report
 ### 6. Explore the API
 
 Open **http://localhost:8000/docs** for the interactive Swagger UI.
+
+### 7. Use native MCP support
+
+This API now exposes a native MCP JSON-RPC endpoint at:
+
+- `POST /mcp` for protocol calls (`initialize`, `tools/list`, `tools/call`)
+- `GET /mcp` for basic discovery/health metadata
+
+Currently exposed read-only MCP tools:
+
+- `list_drivers`
+- `search_drivers`
+- `list_teams`
+- `list_races`
+
+Authentication behavior:
+
+- `initialize` and `tools/list` are always public.
+- `tools/call` is public by default.
+- Set `MCP_REQUIRE_AUTH=true` to require JWT Bearer auth on `tools/call`.
+
+Example MCP `initialize` request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {}
+}
+```
+
+Example MCP `tools/list` request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/list",
+  "params": {}
+}
+```
 
 ## Deployment
 
