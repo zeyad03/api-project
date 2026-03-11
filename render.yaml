@@ -15,10 +15,10 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: TOKEN_EXPIRY_MINUTES
-        value: "120"
+        value: "30"
       - key: ORIGINS
         sync: false
       - key: RATE_LIMIT_DEFAULT
-        value: 100/minute
+        value: 60/minute
       - key: RATE_LIMIT_AUTH
-        value: 5/minute
+        value: 3/minute

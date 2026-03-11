@@ -13,10 +13,12 @@ class Settings(BaseSettings):
     DB_NAME: str = "f1_facts_db"
     JWT_SECRET: str = secrets.token_urlsafe(32)
     JWT_ALGORITHM: str = "HS256"
-    TOKEN_EXPIRY_MINUTES: int = 120
+    TOKEN_EXPIRY_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRY_DAYS: int = 7
     ORIGINS: str = "http://localhost:3000,http://localhost:5173"
-    RATE_LIMIT_DEFAULT: str = "100/minute"
-    RATE_LIMIT_AUTH: str = "5/minute"
+    RATE_LIMIT_DEFAULT: str = "60/minute"
+    RATE_LIMIT_AUTH: str = "3/minute"
+    RATE_LIMIT_SENSITIVE: str = "10/minute"
     MCP_REQUIRE_AUTH: bool = False
 
     def get_origins(self) -> list[str]:

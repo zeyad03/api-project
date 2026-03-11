@@ -37,6 +37,7 @@ else:
             "email": "admin@f1facts.api",
             "display_name": "Admin",
             "password_hash": hash_password("admin123"),
+            "role": "admin",
             "is_admin": True,
             "created_at": now,
         }

@@ -82,6 +82,26 @@ class InvalidTokenError(UnauthorizedError):
         )
 
 
+class TokenRevokedError(UnauthorizedError):
+    """The token has been revoked (e.g. after logout)."""
+
+    def __init__(self):
+        super().__init__(
+            "This token has been revoked. "
+            "Please log in again to obtain a new token."
+        )
+
+
+class InvalidRefreshTokenError(UnauthorizedError):
+    """The refresh token is expired, invalid, or already revoked."""
+
+    def __init__(self):
+        super().__init__(
+            "Invalid or expired refresh token. "
+            "Please log in again."
+        )
+
+
 # ── 403 Forbidden ────────────────────────────────────────────────────────────
 class ForbiddenError(F1FactsAPIError):
     """The authenticated user lacks the required permissions."""
@@ -99,6 +119,16 @@ class AdminRequiredError(ForbiddenError):
         super().__init__(
             "This action requires administrator privileges. "
             "Please contact an admin if you believe this is an error."
+        )
+
+
+class InsufficientRoleError(ForbiddenError):
+    """The user's role is below the minimum required for this endpoint."""
+
+    def __init__(self, required_role: str):
+        super().__init__(
+            f"This action requires at least '{required_role}' role. "
+            "Your current permissions are insufficient."
         )
 
 

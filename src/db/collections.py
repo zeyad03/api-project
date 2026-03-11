@@ -21,6 +21,9 @@ class CollectionNames:
     facts: str = "facts"
     head_to_head_votes: str = "head_to_head_votes"
     hot_takes: str = "hot_takes"
+    refresh_tokens: str = "refresh_tokens"
+    token_blacklist: str = "token_blacklist"
+    audit_logs: str = "audit_logs"
 
 
 collections = CollectionNames()

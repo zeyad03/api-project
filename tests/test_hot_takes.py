@@ -23,7 +23,7 @@ def _take(**overrides):
 def _user_in_db():
     return UserInDB(
         id=FAKE_USER_ID, username="testuser", email="test@example.com",
-        display_name="Test User", is_admin=False,
+        display_name="Test User", role="user", is_admin=False,
         password_hash="hashed", created_at=TIMESTAMP,
     )
 

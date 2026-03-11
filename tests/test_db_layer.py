@@ -95,7 +95,7 @@ def _team_doc(**kw):
 
 def _user_doc(**kw):
     d = {"_id": OID, "username": "testuser", "email": "t@test.com",
-         "display_name": "Test User", "is_admin": False,
+         "display_name": "Test User", "role": "user", "is_admin": False,
          "password_hash": "hashed", "created_at": TS}
     d.update(kw)
     return d

@@ -239,7 +239,7 @@ class TestMCPAuth:
     def test_accepts_valid_token(self, mock_fn, client):
         mock_fn.return_value = [_driver()]
         token = create_access_token(
-            {"sub": "mcp-user", "user_id": "507f1f77bcf86cd799439099", "is_admin": False}
+            {"sub": "mcp-user", "user_id": "507f1f77bcf86cd799439099", "role": "user", "is_admin": False}
         )
         with patch("src.mcp.auth.settings.MCP_REQUIRE_AUTH", True):
             resp = client.post(

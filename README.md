@@ -6,7 +6,7 @@ A community-driven Formula 1 RESTful API built with **FastAPI** and **MongoDB**.
 
 | Feature | Description |
 |---|---|
-| **Auth** | Register, login, JWT-based authentication |
+| **Auth** | Register, login, refresh / revoke tokens, JWT bearer auth, and role-aware permissions |
 | **Drivers** | Full CRUD for the 2025 F1 driver grid (admin-managed, public read) + historical season stats |
 | **Teams** | Full CRUD for the 2025 constructor lineup (admin-managed, public read) + standings, results & season stats |
 | **Circuits** | Browse all F1 circuits/venues with location, country, and active-status filtering |
@@ -47,10 +47,11 @@ cw1/
 │   ├── core/
 │   │   ├── exceptions.py     # Custom API exception hierarchy
 │   │   ├── rate_limit.py     # SlowAPI limiter configuration
-│   │   └── security.py       # JWT + password hashing
+│   │   └── security.py       # JWT, refresh-token helpers, RBAC, password hashing
 │   ├── data/
 │   │   └── seed.py           # Kaggle-based seeder for grid + historical data
 │   ├── db/                   # MongoDB query functions
+│   │   ├── audit_logs.py     # Security audit log writes / reads
 │   │   ├── collections.py    # Collection name constants
 │   │   ├── circuits.py       # Circuit queries
 │   │   ├── drivers.py        # Driver CRUD + season stats queries
@@ -63,6 +64,7 @@ cw1/
 │   │   ├── results.py        # Race/sprint result + lap-time queries
 │   │   ├── seasons.py        # Season queries
 │   │   ├── teams.py          # Team CRUD + constructor history queries
+│   │   ├── tokens.py         # Refresh-token storage + access-token blacklist
 │   │   └── users.py
 │   ├── models/               # Pydantic models (schemas)
 │   │   ├── circuit.py        # Circuit model
@@ -124,10 +126,12 @@ cat > .env <<'EOF'
 MONGO_URI=mongodb://localhost:27017
 DB_NAME=f1_facts_db
 JWT_SECRET=replace-me-with-a-long-random-secret
-TOKEN_EXPIRY_MINUTES=120
+TOKEN_EXPIRY_MINUTES=30
+REFRESH_TOKEN_EXPIRY_DAYS=7
 ORIGINS=http://localhost:3000,http://localhost:5173
-RATE_LIMIT_DEFAULT=100/minute
-RATE_LIMIT_AUTH=5/minute
+RATE_LIMIT_DEFAULT=60/minute
+RATE_LIMIT_AUTH=3/minute
+RATE_LIMIT_SENSITIVE=10/minute
 MCP_REQUIRE_AUTH=false
 EOF
 ```
@@ -138,10 +142,12 @@ Key variables:
 | `MONGO_URI` | `mongodb://localhost:27017` | MongoDB connection string |
 | `DB_NAME` | `f1_facts_db` | Database name |
 | `JWT_SECRET` | random | Change this in production! |
-| `TOKEN_EXPIRY_MINUTES` | `120` | JWT expiry time |
+| `TOKEN_EXPIRY_MINUTES` | `30` | Access-token expiry time in minutes |
+| `REFRESH_TOKEN_EXPIRY_DAYS` | `7` | Refresh-token expiry time in days |
 | `ORIGINS` | `http://localhost:3000,http://localhost:5173` | Allowed CORS origins |
-| `RATE_LIMIT_DEFAULT` | `100/minute` | Default per-IP API rate limit |
-| `RATE_LIMIT_AUTH` | `5/minute` | Stricter per-IP limit for auth endpoints |
+| `RATE_LIMIT_DEFAULT` | `60/minute` | Default per-IP API rate limit |
+| `RATE_LIMIT_AUTH` | `3/minute` | Stricter per-IP limit for register / login |
+| `RATE_LIMIT_SENSITIVE` | `10/minute` | Per-IP limit for sensitive auth flows such as token refresh |
 | `MCP_REQUIRE_AUTH` | `false` | Require `Authorization: Bearer <JWT>` for MCP `tools/call` |
 
 ### 3. Seed the database
@@ -157,7 +163,7 @@ make reseed
 
 `make reseed` now drops the whole configured database first, so it works for both local MongoDB and MongoDB Atlas when `MONGO_URI` points at your Atlas cluster.
 
-> Default admin credentials: `admin` / `admin123`
+> Default admin credentials: `admin` / `admin123` (created with the `admin` role)
 
 ### 4. Start MongoDB & run the server
 
@@ -370,10 +376,12 @@ Set these in Render:
 | `MONGO_URI` | Yes | Hosted MongoDB connection string, not localhost |
 | `DB_NAME` | Yes | Usually `f1_facts_db` |
 | `JWT_SECRET` | Yes | Long random secret for production |
-| `TOKEN_EXPIRY_MINUTES` | No | Defaults to `120` |
+| `TOKEN_EXPIRY_MINUTES` | No | Defaults to `30` |
+| `REFRESH_TOKEN_EXPIRY_DAYS` | No | Defaults to `7` |
 | `ORIGINS` | Yes | Your frontend origin(s), comma-separated |
-| `RATE_LIMIT_DEFAULT` | No | Defaults to `100/minute` |
-| `RATE_LIMIT_AUTH` | No | Defaults to `5/minute` |
+| `RATE_LIMIT_DEFAULT` | No | Defaults to `60/minute` |
+| `RATE_LIMIT_AUTH` | No | Defaults to `3/minute` |
+| `RATE_LIMIT_SENSITIVE` | No | Defaults to `10/minute` |
 
 ### 4. Create the Render deploy hook secret in GitHub
 
@@ -414,11 +422,52 @@ Your local default `MONGO_URI=mongodb://localhost:27017` will **not** work on an
 
 ## Security Notes
 
-- The API uses JWT bearer authentication for protected endpoints.
+- The API uses short-lived JWT bearer access tokens for protected endpoints.
+- Login and registration return both an `access_token` and a `refresh_token`.
+- Refresh tokens are stored hashed in MongoDB and rotated on `POST /auth/refresh`.
+- Access tokens include a unique `jti`; revoked access tokens are rejected via a blacklist check.
+- `POST /auth/logout` revokes the supplied refresh token and blacklists the current access token.
+- `POST /auth/logout-all` revokes all refresh tokens for the current user.
+- User roles are hierarchical: `user` < `moderator` < `admin`.
+- Security events such as register, login, failed login, refresh, logout, and account deletion are audit-logged.
 - Requests are rate-limited per IP using `slowapi`.
-- The default API-wide limit is `100/minute`.
-- The `/auth/register` and `/auth/login` endpoints use a stricter `5/minute` limit.
+- The default API-wide limit is `60/minute`.
+- The `/auth/register` and `/auth/login` endpoints use a stricter `3/minute` limit.
+- The `/auth/refresh` endpoint uses `10/minute`.
 - When a limit is exceeded, the API returns HTTP `429 Too Many Requests`.
+
+### Security Architecture
+
+```text
+Client
+  ├─ POST /auth/register or /auth/login
+  │    └─ receives access_token + refresh_token
+  ├─ Uses access_token on protected REST / MCP calls
+  │    └─ API validates JWT signature, expiry, role, and JTI blacklist
+  ├─ Uses refresh_token on POST /auth/refresh
+  │    └─ API validates hashed refresh token in MongoDB, revokes old token, issues new pair
+  └─ Uses POST /auth/logout or /auth/logout-all
+       └─ API revokes refresh tokens and blacklists current access token JTI
+```
+
+| Layer | Responsibility |
+|---|---|
+| `src/core/security.py` | Creates access tokens, generates refresh tokens, decodes JWTs, enforces RBAC, and blocks blacklisted access tokens |
+| `src/db/tokens.py` | Stores hashed refresh tokens, rotates / revokes them, and maintains the access-token blacklist |
+| `src/db/audit_logs.py` | Records security-sensitive events for traceability and incident review |
+| `src/routers/auth.py` | Exposes register, login, refresh, logout, logout-all, and profile endpoints |
+| MongoDB indexes | Speed up token lookups, blacklist checks, and audit-log queries |
+
+### Security Flow Summary
+
+| Flow | What happens |
+|---|---|
+| Login / register | Issue a short-lived JWT access token plus a long-lived opaque refresh token |
+| Protected request | Validate signature, expiry, claims, and blacklist status before serving data |
+| Token refresh | Revoke old refresh token, create a new refresh token, and mint a new access token |
+| Logout | Revoke the refresh token for that session and blacklist the current access token |
+| Logout all | Revoke all refresh tokens for the user and invalidate the current access token |
+| Audit trail | Persist login, failed login, refresh, logout, and deletion events with request metadata |
 
 ## Makefile Reference
 
@@ -448,11 +497,14 @@ Your local default `MONGO_URI=mongodb://localhost:27017` will **not** work on an
 ### Auth
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| POST | `/auth/register` | No | Create account |
-| POST | `/auth/login` | No | Login (form-data), get JWT |
+| POST | `/auth/register` | No | Create account and receive access + refresh tokens |
+| POST | `/auth/login` | No | Login (form-data), receive access + refresh tokens |
+| POST | `/auth/refresh` | No | Rotate refresh token and receive a new token pair |
+| POST | `/auth/logout` | Yes | Revoke one refresh token and blacklist the current access token |
+| POST | `/auth/logout-all` | Yes | Revoke all active refresh-token sessions for the current user |
 | GET | `/auth/me` | Yes | Get profile |
 | PATCH | `/auth/me` | Yes | Update profile |
-| DELETE | `/auth/me` | Yes | Delete account |
+| DELETE | `/auth/me` | Yes | Delete account and revoke all sessions |
 
 ### Drivers
 | Method | Endpoint | Auth | Description |
@@ -559,11 +611,25 @@ Your local default `MONGO_URI=mongodb://localhost:27017` will **not** work on an
 
 ## Authentication
 
-The API uses **JWT Bearer tokens**. After registering or logging in, include the token in requests:
+The API uses **JWT Bearer access tokens** plus **opaque refresh tokens**.
+
+After registering or logging in, use the `access_token` for authenticated requests:
 
 ```
 Authorization: Bearer <your-token>
 ```
+
+Use the `refresh_token` only with `POST /auth/refresh` to obtain a new token pair when the access token expires.
+
+Logout behavior:
+
+- `POST /auth/logout` ends a single session by revoking the supplied refresh token and blacklisting the current access token.
+- `POST /auth/logout-all` ends all active sessions for the authenticated user.
+
+Role behavior:
+
+- Most write actions require authentication.
+- Admin-managed resources such as driver, team, and trivia moderation endpoints require the `admin` role.
 
 In the Swagger UI, click the **Authorize** button and paste your token.
 
@@ -585,11 +651,26 @@ curl -X POST http://localhost:8000/auth/register \
 # Login (uses OAuth2 form-data)
 curl -X POST http://localhost:8000/auth/login \
   -d 'username=zeyad&password=mypass123'
+
+# Response includes both tokens; use the access token for Bearer auth
+ACCESS_TOKEN="your-access-token"
+REFRESH_TOKEN="your-refresh-token"
+
+# Refresh / rotate tokens
+curl -X POST http://localhost:8000/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"'"$REFRESH_TOKEN"'"}'
+
+# Logout current session
+curl -X POST http://localhost:8000/auth/logout \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"'"$REFRESH_TOKEN"'"}'
 ```
 
 ### Create a favourite list & add drivers
 ```bash
-TOKEN="your-jwt-token"
+TOKEN="your-access-token"
 
 # Create list
 curl -X POST http://localhost:8000/favourites \

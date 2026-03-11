@@ -30,13 +30,22 @@ TIMESTAMP = "2025-01-01T00:00:00+00:00"
 # ── Dependency override callables ───────────────────────────────────────────
 def _regular_user():
     return TokenData(
-        sub="testuser", user_id=FAKE_USER_ID, is_admin=False, exp=9999999999.0
+        sub="testuser", user_id=FAKE_USER_ID, role="user",
+        is_admin=False, jti="test-jti-regular", exp=9999999999.0,
     )
 
 
 def _admin_user():
     return TokenData(
-        sub="admin", user_id=FAKE_ADMIN_ID, is_admin=True, exp=9999999999.0
+        sub="admin", user_id=FAKE_ADMIN_ID, role="admin",
+        is_admin=True, jti="test-jti-admin", exp=9999999999.0,
+    )
+
+
+def _moderator_user():
+    return TokenData(
+        sub="moderator", user_id="507f1f77bcf86cd799439021", role="moderator",
+        is_admin=False, jti="test-jti-mod", exp=9999999999.0,
     )
 
 
@@ -54,6 +63,10 @@ def client():
     with patch("src.main.AsyncIOMotorClient") as mock_motor:
         mock_db = MagicMock()
         mock_db.command = AsyncMock(return_value={"ok": 1})
+        # Every collection access returns a mock whose async methods work
+        mock_collection = MagicMock()
+        mock_collection.create_index = AsyncMock()
+        mock_db.__getitem__ = MagicMock(return_value=mock_collection)
         mock_motor.return_value.get_database.return_value = mock_db
         with TestClient(app) as c:
             yield c
@@ -70,4 +83,11 @@ def auth_client(client):
 def admin_client(client):
     """TestClient authenticated as an *admin* user."""
     app.dependency_overrides[get_current_user] = _admin_user
+    return client
+
+
+@pytest.fixture()
+def moderator_client(client):
+    """TestClient authenticated as a *moderator* user."""
+    app.dependency_overrides[get_current_user] = _moderator_user
     return client

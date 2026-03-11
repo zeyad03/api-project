@@ -13,6 +13,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from src.config.settings import settings
 from src.core.exceptions import F1FactsAPIError
 from src.core.rate_limit import limiter
+from src.db.collections import collections
 from src.routers.auth import router as auth_router
 from src.routers.circuits import router as circuits_router
 from src.routers.drivers import router as drivers_router
@@ -41,6 +42,25 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         print(f"MongoDB connection failed: {exc}")
         raise
+
+    # ── Security indexes ─────────────────────────────────────────────────
+    # Unique index on refresh-token hash for fast look-ups
+    await app.state.db[collections.refresh_tokens].create_index(
+        "token_hash", unique=True
+    )
+    # Index on user_id for logout-all
+    await app.state.db[collections.refresh_tokens].create_index("user_id")
+    # Unique index on JTI for blacklist look-ups
+    await app.state.db[collections.token_blacklist].create_index(
+        "jti", unique=True
+    )
+    # Index on audit log timestamp for efficient queries
+    await app.state.db[collections.audit_logs].create_index(
+        [("timestamp", -1)]
+    )
+    await app.state.db[collections.audit_logs].create_index("user_id")
+    print("Security indexes ensured")
+
     yield
     client.close()
     print("MongoDB connection closed")
