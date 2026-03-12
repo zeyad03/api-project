@@ -1,5 +1,6 @@
 """Driver database queries."""
 
+import logging
 import re
 
 from bson import ObjectId
@@ -11,6 +12,7 @@ from src.models.driver import Driver, DriverCreate, DriverSeasonStat, DriverUpda
 
 REGEX_OPERATOR = "$regex"
 REGEX_OPTIONS = "$options"
+log = logging.getLogger("f1api.db.drivers")
 
 
 async def get_all_drivers(
@@ -82,6 +84,15 @@ async def delete_driver_db(driver_id: str, db: AsyncIOMotorDatabase) -> bool:
     result = await db[collections.drivers].delete_one({"_id": ObjectId(driver_id)})
     if result.deleted_count == 0:
         raise DriverNotFoundError(driver_id)
+
+    # Cascade: remove driver from favourite lists
+    removed = await db[collections.favourites].update_many(
+        {"list_type": "drivers"},
+        {"$pull": {"items": {"item_id": driver_id}}},
+    )
+    if removed.modified_count:
+        log.info("Cascade: removed driver %s from %d favourite list(s)",
+                 driver_id, removed.modified_count)
     return True
 
 

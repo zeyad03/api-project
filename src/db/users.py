@@ -1,11 +1,15 @@
 """User database queries."""
 
+import logging
+
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.core.exceptions import EmptyUpdateError, UserNotFoundError
 from src.db.collections import collections
 from src.models.user import User, UserInDB, UserUpdate
+
+log = logging.getLogger("f1api.db.users")
 
 
 async def get_user_by_id(user_id: str, db: AsyncIOMotorDatabase) -> UserInDB:
@@ -50,4 +54,17 @@ async def delete_user_db(user_id: str, db: AsyncIOMotorDatabase) -> bool:
     result = await db[collections.users].delete_one({"_id": ObjectId(user_id)})
     if result.deleted_count == 0:
         raise UserNotFoundError(user_id)
+
+    # Cascade: clean up all user-owned data
+    del_favs = await db[collections.favourites].delete_many({"user_id": user_id})
+    del_preds = await db[collections.predictions].delete_many({"user_id": user_id})
+    del_takes = await db[collections.hot_takes].delete_many({"user_id": user_id})
+    del_votes = await db[collections.head_to_head_votes].delete_many({"user_id": user_id})
+
+    log.info(
+        "Cascade delete for user %s: %d favourites, %d predictions, "
+        "%d hot_takes, %d h2h_votes removed",
+        user_id, del_favs.deleted_count, del_preds.deleted_count,
+        del_takes.deleted_count, del_votes.deleted_count,
+    )
     return True

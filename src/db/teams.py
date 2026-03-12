@@ -1,5 +1,6 @@
 """Team database queries."""
 
+import logging
 import re
 
 from bson import ObjectId
@@ -7,6 +8,8 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.core.exceptions import EmptyUpdateError, TeamNotFoundError
 from src.db.collections import collections
+
+log = logging.getLogger("f1api.db.teams")
 from src.models.team import (
     ConstructorResult,
     ConstructorSeasonStat,
@@ -74,6 +77,15 @@ async def delete_team_db(team_id: str, db: AsyncIOMotorDatabase) -> bool:
     result = await db[collections.teams].delete_one({"_id": ObjectId(team_id)})
     if result.deleted_count == 0:
         raise TeamNotFoundError(team_id)
+
+    # Cascade: remove team from favourite lists
+    removed = await db[collections.favourites].update_many(
+        {"list_type": "teams"},
+        {"$pull": {"items": {"item_id": team_id}}},
+    )
+    if removed.modified_count:
+        log.info("Cascade: removed team %s from %d favourite list(s)",
+                 team_id, removed.modified_count)
     return True
 
 
