@@ -241,9 +241,10 @@ class TestMCPAuth:
             )
         assert resp.json()["error"]["code"] == -32001
 
+    @patch("src.mcp.auth.is_token_blacklisted", new_callable=AsyncMock, return_value=False)
     @patch("src.mcp.tools.get_all_drivers", new_callable=AsyncMock)
-    def test_accepts_valid_token(self, mock_fn, client):
-        mock_fn.return_value = [_driver()]
+    def test_accepts_valid_token(self, mock_fn, _mock_bl, client):
+        mock_fn.return_value = ([_driver()], 1)
         token = create_access_token(
             {"sub": "mcp-user", "user_id": "507f1f77bcf86cd799439099", "role": "user", "is_admin": False}
         )

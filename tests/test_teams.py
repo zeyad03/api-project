@@ -61,7 +61,7 @@ class TestSearchTeams:
     def test_search_no_results(self, _m, client):
         resp = client.get("/teams/search?name=Nobody")
         assert resp.status_code == 200
-        assert resp.json() == []
+        assert resp.json()["data"] == []
 
 
 class TestGetTeam:

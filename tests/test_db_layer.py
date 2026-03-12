@@ -72,7 +72,9 @@ def _col(*, find_one=None, find_docs=None, agg_docs=None,
     c.count_documents = AsyncMock(return_value=len(find_docs or []))
     c.insert_one = AsyncMock(return_value=MagicMock(inserted_id=inserted_id))
     c.update_one = AsyncMock(return_value=MagicMock(matched_count=matched))
+    c.update_many = AsyncMock(return_value=MagicMock(modified_count=0))
     c.delete_one = AsyncMock(return_value=MagicMock(deleted_count=deleted))
+    c.delete_many = AsyncMock(return_value=MagicMock(deleted_count=0))
     c.aggregate = MagicMock(return_value=MockCursor(agg_docs or []))
     return c
 
