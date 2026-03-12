@@ -1,25 +1,35 @@
 # 🏎️ F1 Facts API
 
-A community-driven Formula 1 RESTful API built with **FastAPI** and **MongoDB**. Track drivers & teams, build personal favourite lists, predict championship winners, play trivia quizzes, compare drivers head-to-head, and share your hottest F1 takes!
+A Formula 1 RESTful API built with **FastAPI** and **MongoDB**. The service provides driver and team data, favourites, predictions, trivia, head-to-head comparisons, community hot takes, and a native MCP interface for AI clients.
 
 ## Features
 
 | Feature | Description |
 |---|---|
-| **Auth** | Register, login, refresh / revoke tokens, JWT bearer auth, and role-aware permissions |
+| **Auth** | Register, login, refresh / revoke tokens, JWT bearer auth, refresh-token rotation, blacklist checks, and role-aware permissions |
 | **Drivers** | Full CRUD for the 2025 F1 driver grid (admin-managed, public read) + historical season stats |
 | **Teams** | Full CRUD for the 2025 constructor lineup (admin-managed, public read) + standings, results & season stats |
-| **Circuits** | Browse all F1 circuits/venues with location, country, and active-status filtering |
-| **Seasons** | Explore every championship season with champion info and calendar metadata |
-| **Races** | Full race calendar with winner info, filterable by season and circuit |
+| **Circuits** | Browse all F1 circuits/venues with location, country, active-status filtering, and paginated responses |
+| **Seasons** | Explore every championship season with champion info, calendar metadata, and paginated browsing |
+| **Races** | Full race calendar with winner info, season/circuit filtering, and paginated responses |
 | **Results** | Race results, sprint results, and lap-time analytics with flexible filtering |
-| **Favourites** | Create personal lists of favourite drivers and teams |
+| **Favourites** | Create personal lists of favourite drivers and teams, with cascade cleanup on related deletions |
 | **Predictions** | Predict the Driver & Constructor Champions with confidence ratings |
 | **Leaderboard** | Global aggregated view of who the community thinks will win |
-| **Trivia & Facts** | Random F1 facts, user-submitted facts with like/approve, plus a quiz mode |
+| **Trivia & Facts** | Random F1 facts, user-submitted facts with atomic like/unlike toggles, moderation, plus a quiz mode |
 | **Head-to-Head** | Compare any two drivers' stats side-by-side and vote on who's better |
-| **Hot Takes** | Post controversial F1 opinions — others agree or disagree |
+| **Hot Takes** | Post controversial F1 opinions with atomic agree/disagree toggles and popularity sorting |
 | **Native MCP** | Built-in Model Context Protocol endpoint (`/mcp`) for AI tools/agents |
+
+## Recent Improvements
+
+- Added paginated REST responses for public list/search endpoints on drivers, teams, circuits, seasons, races, and hot takes using a shared `PaginatedResponse[T]` model.
+- Hardened search endpoints against regex injection by escaping user-supplied patterns before sending them to MongoDB.
+- Strengthened MCP auth so authenticated `tools/call` requests also reject blacklisted JWTs, matching REST security behaviour.
+- Made fact likes and hot-take reactions safer with atomic MongoDB update operators (`$addToSet` / `$pull`).
+- Added structured application logging with configurable `LOG_LEVEL` support.
+- Added cascade cleanup when deleting users, drivers, or teams so related favourites, predictions, hot takes, and votes are not left orphaned.
+- Expanded automated coverage with dedicated tests for circuits, seasons, races, and results; the suite currently passes with `368` tests.
 
 ## Project Structure
 
@@ -46,6 +56,7 @@ cw1/
 │   │   └── settings.py       # Pydantic settings from .env
 │   ├── core/
 │   │   ├── exceptions.py     # Custom API exception hierarchy
+│   │   ├── logging.py        # Structured logging configuration
 │   │   ├── rate_limit.py     # SlowAPI limiter configuration
 │   │   └── security.py       # JWT, refresh-token helpers, RBAC, password hashing
 │   ├── data/
@@ -110,7 +121,7 @@ cw1/
 - **Python 3.12** (3.14 is not yet supported by pydantic-core)
 - **MongoDB** installed via Homebrew (`brew install mongodb-community@7.0`)
 
-### 1. Create a virtual environment & install dependencies
+### 1. Create a virtual environment and install dependencies
 
 ```bash
 python3 -m venv venv
@@ -119,7 +130,7 @@ make install
 
 ### 2. Configure environment
 
-Create a `.env` file in the project root and add the settings you want to override:
+Create a `.env` file in the project root and override any settings you need:
 
 ```bash
 cat > .env <<'EOF'
@@ -133,6 +144,7 @@ RATE_LIMIT_DEFAULT=60/minute
 RATE_LIMIT_AUTH=3/minute
 RATE_LIMIT_SENSITIVE=10/minute
 MCP_REQUIRE_AUTH=false
+LOG_LEVEL=INFO
 EOF
 ```
 
@@ -149,10 +161,11 @@ Key variables:
 | `RATE_LIMIT_AUTH` | `3/minute` | Stricter per-IP limit for register / login |
 | `RATE_LIMIT_SENSITIVE` | `10/minute` | Per-IP limit for sensitive auth flows such as token refresh |
 | `MCP_REQUIRE_AUTH` | `false` | Require `Authorization: Bearer <JWT>` for MCP `tools/call` |
+| `LOG_LEVEL` | `INFO` | Application log level for structured server logs |
 
 ### 3. Seed the database
 
-Downloads the [Kaggle F1 Race Data](https://www.kaggle.com/datasets/jtrotman/formula-1-race-data) dataset and populates the database with current drivers and teams, historical circuits / seasons / races / results, compact lap-time and season-summary analytics, plus seeded trivia facts:
+This downloads the [Kaggle F1 Race Data](https://www.kaggle.com/datasets/jtrotman/formula-1-race-data) dataset and populates the database with current drivers and teams, historical circuits / seasons / races / results, compact lap-time and season-summary analytics, plus seeded trivia facts:
 
 ```bash
 make seed
@@ -161,7 +174,7 @@ make seed
 make reseed
 ```
 
-`make reseed` now drops the whole configured database first, so it works for both local MongoDB and MongoDB Atlas when `MONGO_URI` points at your Atlas cluster.
+`make reseed` drops the configured database before seeding, so it works for both local MongoDB and MongoDB Atlas when `MONGO_URI` points at a hosted cluster.
 
 > Default admin credentials: `admin` / `admin123` (created with the `admin` role)
 
@@ -192,9 +205,7 @@ make test-fast      # Stop on first failure
 make test-cov       # With coverage report
 ```
 
-The test suite now demonstrates a clear testing strategy rather than just
-"tests exist". Tests are split into five categories using registered pytest
-markers:
+The test suite is organised around a clear testing strategy rather than a single undifferentiated set of checks. Tests are split into five categories using registered pytest markers:
 
 | Marker | Purpose |
 |---|---|
@@ -214,14 +225,19 @@ python -m pytest tests/ -m auth -v
 python -m pytest tests/ -m integration -v
 ```
 
-The new integration-style coverage includes workflows such as:
+Integration-style coverage includes workflows such as:
 
 - register → login → refresh → create favourites / predictions / hot takes → cleanup
 - admin creates / updates / deletes a driver while public and regular-user access is verified
 - user submits a fact → admin approves it → user likes it → public can read it
 
-If you want a quick confidence pass before pushing, run the full suite once and
-then re-run just the category you changed.
+For quick iteration, run the full suite once and then re-run only the category relevant to the code you changed.
+
+Current status:
+
+- Full suite: `368 passed`
+- Dedicated API coverage exists for drivers, teams, circuits, seasons, races, results, trivia, predictions, favourites, MCP, and auth flows
+- Error-path coverage exercises `400`, `401`, `403`, `404`, `409`, and `422` behaviour
 
 ### 6. Explore the API
 
@@ -232,9 +248,9 @@ Open **http://localhost:8000/docs** for the interactive Swagger UI.
 This API supports both traditional REST clients and AI-native clients.
 
 - Use the REST endpoints for browsers, frontend apps, Swagger UI, and standard HTTP integrations.
-- Use MCP (Model Context Protocol) when an AI assistant, agent, or tool needs a structured way to discover capabilities and call your API safely.
+- Use MCP (Model Context Protocol) when an AI assistant, agent, or tool needs a structured way to discover capabilities and call the API safely.
 
-In practice, MCP matters because it gives AI clients a predictable JSON-RPC interface for tool discovery and execution, while the existing REST API remains unchanged for human and web consumers.
+In practice, MCP provides AI clients with a predictable JSON-RPC interface for tool discovery and execution, while the REST API remains unchanged for browsers, frontend applications, and standard HTTP consumers.
 
 The MCP surface is exposed at:
 
@@ -247,7 +263,9 @@ The implementation is now modularised under `src/mcp/`:
 - `src/mcp/tools.py` contains the MCP tool schemas and handlers
 - `src/mcp/auth.py` contains optional JWT auth enforcement for `tools/call`
 
-All MCP tools are read-only and mirror the same `src.db` query functions used by the public REST API, so MCP responses stay consistent with the rest of the application.
+All MCP tools are read-only and mirror the same `src.db` query functions used by the public REST API, so MCP responses remain consistent with the rest of the application.
+
+The paginated MCP-backed tools mirror the REST API pagination changes internally while keeping MCP output convenient for AI clients.
 
 Currently exposed read-only MCP tools:
 
@@ -265,12 +283,13 @@ Currently exposed read-only MCP tools:
 - `list_facts`
 - `get_prediction_leaderboard`
 
-Authentication behavior:
+Authentication behaviour:
 
 - `initialize` and `tools/list` are always public.
 - `tools/call` is public by default.
 - Set `MCP_REQUIRE_AUTH=true` to require JWT Bearer auth on `tools/call`.
 - When auth is enabled, send `Authorization: Bearer <JWT>` exactly like the protected REST endpoints.
+- When auth is enabled, blacklisted/revoked JWT access tokens are also rejected for MCP calls.
 
 Swagger UI notes:
 
@@ -344,14 +363,14 @@ python -m pytest tests/test_mcp.py -v
 
 ## Deployment
 
-This repository is now set up for deployment to **Render** with **GitHub Actions** controlling when a deployment happens.
+This repository is configured for deployment to **Render**, with **GitHub Actions** controlling when deployment is triggered.
 
 ### Deployment architecture
 
 - **App host:** Render web service using the included Dockerfile
 - **Database:** MongoDB Atlas (or another externally reachable MongoDB instance)
 - **CI/CD gate:** GitHub Actions runs your custom test script first
-- **Deploy rule:** only pushes to `main` deploy, and only if the test job passes
+- **Deploy rule:** only pushes to `main` deploy, and only if the test job succeeds
 
 ### Files added for deployment
 
@@ -359,19 +378,13 @@ This repository is now set up for deployment to **Render** with **GitHub Actions
 - `docker/.dockerignore` — Docker build exclusions
 - `render.yaml` — Render service blueprint with production env vars
 - `.github/workflows/ci-cd.yml` — test + deploy workflow
-- `scripts/ci/run-tests.example.sh` — sample test script you can copy and customise
+- `scripts/ci/run-tests.sh` — CI test entrypoint used by GitHub Actions
 
-### 1. Create your CI test script
+### 1. Review your CI test script
 
-Create this file in your repo:
+This repository already includes `scripts/ci/run-tests.sh`.
 
-```bash
-mkdir -p scripts/ci
-cp scripts/ci/run-tests.example.sh scripts/ci/run-tests.sh
-chmod +x scripts/ci/run-tests.sh
-```
-
-Edit `scripts/ci/run-tests.sh` to run exactly the checks you want GitHub Actions to enforce before deployment.
+Edit it to define the checks GitHub Actions must enforce before deployment.
 
 Example:
 
@@ -389,8 +402,7 @@ python -m pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=
 
 > The workflow calls `bash scripts/ci/run-tests.sh`, so deployment is blocked until that script exits successfully with at least `80%` coverage.
 
-If you want CI output to reflect the testing strategy more explicitly, you can
-also split the run by marker before the final coverage pass, for example:
+If you want CI output to reflect the testing strategy more explicitly, you can also split the run by marker before the final coverage pass, for example:
 
 ```bash
 python -m pytest tests/ -m unit -v
@@ -425,6 +437,8 @@ Set these in Render:
 | `RATE_LIMIT_DEFAULT` | No | Defaults to `60/minute` |
 | `RATE_LIMIT_AUTH` | No | Defaults to `3/minute` |
 | `RATE_LIMIT_SENSITIVE` | No | Defaults to `10/minute` |
+| `MCP_REQUIRE_AUTH` | No | Set to `true` if MCP `tools/call` should require Bearer auth |
+| `LOG_LEVEL` | No | Defaults to `INFO` |
 
 ### 4. Create the Render deploy hook secret in GitHub
 
@@ -461,19 +475,20 @@ Once that is done, future pushes to `main` will deploy automatically after your 
 
 ### Important production note
 
-Your local default `MONGO_URI=mongodb://localhost:27017` will **not** work on an external host. Production must use a hosted MongoDB connection string, such as MongoDB Atlas.
+The local default `MONGO_URI=mongodb://localhost:27017` will **not** work on an external host. Production must use a hosted MongoDB connection string, such as MongoDB Atlas.
 
 ## Security Notes
 
 - The API uses short-lived JWT bearer access tokens for protected endpoints.
 - Login and registration return both an `access_token` and a `refresh_token`.
 - Refresh tokens are stored hashed in MongoDB and rotated on `POST /auth/refresh`.
-- Access tokens include a unique `jti`; revoked access tokens are rejected via a blacklist check.
+- Access tokens include a unique `jti`; revoked access tokens are rejected via a blacklist check across both REST and authenticated MCP calls.
 - `POST /auth/logout` revokes the supplied refresh token and blacklists the current access token.
 - `POST /auth/logout-all` revokes all refresh tokens for the current user.
 - User roles are hierarchical: `user` < `moderator` < `admin`.
 - Security events such as register, login, failed login, refresh, logout, and account deletion are audit-logged.
 - Requests are rate-limited per IP using `slowapi`.
+- The application emits structured logs for startup, auth activity, MCP tool calls, and unhandled exceptions.
 - The default API-wide limit is `60/minute`.
 - The `/auth/register` and `/auth/login` endpoints use a stricter `3/minute` limit.
 - The `/auth/refresh` endpoint uses `10/minute`.
@@ -498,6 +513,7 @@ Client
 | `src/core/security.py` | Creates access tokens, generates refresh tokens, decodes JWTs, enforces RBAC, and blocks blacklisted access tokens |
 | `src/db/tokens.py` | Stores hashed refresh tokens, rotates / revokes them, and maintains the access-token blacklist |
 | `src/db/audit_logs.py` | Records security-sensitive events for traceability and incident review |
+| `src/core/logging.py` | Configures structured application logging with an environment-controlled log level |
 | `src/routers/auth.py` | Exposes register, login, refresh, logout, logout-all, and profile endpoints |
 | MongoDB indexes | Speed up token lookups, blacklist checks, and audit-log queries |
 
@@ -562,8 +578,8 @@ python -m pytest tests/ -m integration
 ### Drivers
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| GET | `/drivers` | No | List all drivers |
-| GET | `/drivers/search?name=&team=` | No | Search drivers |
+| GET | `/drivers?active_only=&skip=&limit=` | No | List drivers (paginated) |
+| GET | `/drivers/search?name=&team=&skip=&limit=` | No | Search drivers (paginated) |
 | GET | `/drivers/{id}` | No | Get driver by ID |
 | POST | `/drivers` | Admin | Create driver |
 | PATCH | `/drivers/{id}` | Admin | Update driver |
@@ -574,8 +590,8 @@ python -m pytest tests/ -m integration
 ### Teams
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| GET | `/teams` | No | List all teams |
-| GET | `/teams/search?name=` | No | Search teams |
+| GET | `/teams?active_only=&skip=&limit=` | No | List teams (paginated) |
+| GET | `/teams/search?name=&skip=&limit=` | No | Search teams (paginated) |
 | GET | `/teams/{id}` | No | Get team by ID |
 | POST | `/teams` | Admin | Create team |
 | PATCH | `/teams/{id}` | Admin | Update team |
@@ -588,20 +604,20 @@ python -m pytest tests/ -m integration
 ### Circuits
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| GET | `/circuits?active_only=&country=` | No | List all circuits |
-| GET | `/circuits/search?name=&country=` | No | Search circuits |
+| GET | `/circuits?active_only=&country=&skip=&limit=` | No | List circuits (paginated) |
+| GET | `/circuits/search?name=&country=&skip=&limit=` | No | Search circuits (paginated) |
 | GET | `/circuits/{circuit_id}` | No | Get circuit by Kaggle circuitId |
 
 ### Seasons
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| GET | `/seasons?start_year=&end_year=` | No | List all seasons (newest first) |
+| GET | `/seasons?start_year=&end_year=&skip=&limit=` | No | List seasons (paginated unless using year range filter) |
 | GET | `/seasons/{year}` | No | Get a single season by year |
 
 ### Races
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| GET | `/races?season_year=&circuit_id=` | No | List races |
+| GET | `/races?season_year=&circuit_id=&skip=&limit=` | No | List races (paginated) |
 | GET | `/races/statuses` | No | List all finish status codes |
 | GET | `/races/{race_id}` | No | Get race by Kaggle raceId |
 | GET | `/races/season/{year}/round/{round}` | No | Get race by season and round |
@@ -656,7 +672,7 @@ python -m pytest tests/ -m integration
 ### Hot Takes
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| GET | `/hot-takes?sort_by=recent\|spicy\|popular` | No | List hot takes |
+| GET | `/hot-takes?sort_by=recent\|spicy\|popular&category=&skip=&limit=` | No | List hot takes (paginated) |
 | GET | `/hot-takes/{id}` | No | Get a hot take |
 | POST | `/hot-takes` | Yes | Post a hot take |
 | POST | `/hot-takes/{id}/react` | Yes | Agree / disagree |
@@ -664,7 +680,7 @@ python -m pytest tests/ -m integration
 
 ## Authentication
 
-The API uses **JWT Bearer access tokens** plus **opaque refresh tokens**.
+The API uses **JWT Bearer access tokens** alongside **opaque refresh tokens**.
 
 After registering or logging in, use the `access_token` for authenticated requests:
 
@@ -674,12 +690,13 @@ Authorization: Bearer <your-token>
 
 Use the `refresh_token` only with `POST /auth/refresh` to obtain a new token pair when the access token expires.
 
-Logout behavior:
+Logout behaviour:
 
 - `POST /auth/logout` ends a single session by revoking the supplied refresh token and blacklisting the current access token.
 - `POST /auth/logout-all` ends all active sessions for the authenticated user.
+- `DELETE /auth/me` also revokes sessions and now cascades deletion of user-owned favourites, predictions, hot takes, and head-to-head votes.
 
-Role behavior:
+Role behaviour:
 
 - Most write actions require authentication.
 - Admin-managed resources such as driver, team, and trivia moderation endpoints require the `admin` role.
@@ -691,6 +708,26 @@ For names in path parameters, URL-encode spaces. Example:
 ```
 /head-to-head/compare/Lewis%20Hamilton/Max%20Verstappen
 ```
+
+## Pagination
+
+Public list/search endpoints for drivers, teams, circuits, seasons, races, and hot takes use a shared paginated response shape:
+
+```json
+{
+  "data": ["...items..."],
+  "total": 125,
+  "skip": 0,
+  "limit": 50
+}
+```
+
+Notes:
+
+- `skip` is zero-based and defaults to `0`
+- `limit` defaults to `50` on paginated REST endpoints unless documented otherwise
+- seasons return paginated output for normal listing; when `start_year` / `end_year` filters are used, the response still uses the same wrapper
+- results endpoints remain plain lists because they already expose explicit filter-heavy query shapes
 
 ## Example Usage
 
@@ -736,6 +773,9 @@ curl -X POST http://localhost:8000/favourites/{list_id}/items \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"item_id":"driver_id_here","name":"Max Verstappen"}'
+
+# If that driver is later deleted by an admin, it is automatically removed
+# from favourite lists during cascade cleanup.
 ```
 
 ### Make a championship prediction
@@ -760,6 +800,11 @@ curl -X POST http://localhost:8000/trivia/quiz/answer \
 ### Compare two drivers by name
 ```bash
 curl http://localhost:8000/head-to-head/compare/Lewis%20Hamilton/Max%20Verstappen
+```
+
+### Paginated public browse example
+```bash
+curl "http://localhost:8000/races?season_year=2024&skip=0&limit=10"
 ```
 
 ## Tech Stack
