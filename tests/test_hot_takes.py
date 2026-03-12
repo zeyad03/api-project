@@ -38,22 +38,22 @@ def _user_in_db():
 class TestListHotTakes:
     @patch("src.routers.hot_takes.get_all_hot_takes", new_callable=AsyncMock)
     def test_list_all(self, mock_get, client):
-        mock_get.return_value = [_take()]
+        mock_get.return_value = ([_take()], 1)
         resp = client.get("/hot-takes")
         assert resp.status_code == 200
-        assert len(resp.json()) == 1
+        assert len(resp.json()["data"]) == 1
 
     @patch("src.routers.hot_takes.get_all_hot_takes", new_callable=AsyncMock)
     def test_sort_by_spicy(self, mock_get, client):
-        mock_get.return_value = [_take()]
+        mock_get.return_value = ([_take()], 1)
         resp = client.get("/hot-takes?sort_by=spicy")
         assert resp.status_code == 200
 
-    @patch("src.routers.hot_takes.get_all_hot_takes", new_callable=AsyncMock, return_value=[])
+    @patch("src.routers.hot_takes.get_all_hot_takes", new_callable=AsyncMock, return_value=([], 0))
     def test_list_empty(self, _m, client):
         resp = client.get("/hot-takes")
         assert resp.status_code == 200
-        assert resp.json() == []
+        assert resp.json()["data"] == []
 
 
 class TestGetHotTake:

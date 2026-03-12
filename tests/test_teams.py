@@ -29,34 +29,35 @@ def _team(**overrides):
 class TestListTeams:
     @patch("src.routers.teams.get_all_teams", new_callable=AsyncMock)
     def test_list_all(self, mock_get, client):
-        mock_get.return_value = [_team()]
+        mock_get.return_value = ([_team()], 1)
         resp = client.get("/teams")
         assert resp.status_code == 200
-        assert len(resp.json()) == 1
-        assert resp.json()[0]["name"] == "Ferrari"
+        assert len(resp.json()["data"]) == 1
+        assert resp.json()["data"][0]["name"] == "Ferrari"
+        assert resp.json()["total"] == 1
 
     @patch("src.routers.teams.get_all_teams", new_callable=AsyncMock)
     def test_list_active_only(self, mock_get, client):
-        mock_get.return_value = [_team()]
+        mock_get.return_value = ([_team()], 1)
         resp = client.get("/teams?active_only=true")
         assert resp.status_code == 200
 
-    @patch("src.routers.teams.get_all_teams", new_callable=AsyncMock, return_value=[])
+    @patch("src.routers.teams.get_all_teams", new_callable=AsyncMock, return_value=([], 0))
     def test_list_empty(self, _m, client):
         resp = client.get("/teams")
         assert resp.status_code == 200
-        assert resp.json() == []
+        assert resp.json()["data"] == []
 
 
 class TestSearchTeams:
     @patch("src.routers.teams.search_teams", new_callable=AsyncMock)
     def test_search_by_name(self, mock_search, client):
-        mock_search.return_value = [_team()]
+        mock_search.return_value = ([_team()], 1)
         resp = client.get("/teams/search?name=Ferrari")
         assert resp.status_code == 200
-        assert len(resp.json()) == 1
+        assert len(resp.json()["data"]) == 1
 
-    @patch("src.routers.teams.search_teams", new_callable=AsyncMock, return_value=[])
+    @patch("src.routers.teams.search_teams", new_callable=AsyncMock, return_value=([], 0))
     def test_search_no_results(self, _m, client):
         resp = client.get("/teams/search?name=Nobody")
         assert resp.status_code == 200

@@ -28,48 +28,50 @@ def _driver(**overrides):
 class TestListDrivers:
     @patch("src.routers.drivers.get_all_drivers", new_callable=AsyncMock)
     def test_list_all(self, mock_get, client):
-        mock_get.return_value = [_driver()]
+        mock_get.return_value = ([_driver()], 1)
         resp = client.get("/drivers")
         assert resp.status_code == 200
-        assert len(resp.json()) == 1
-        assert resp.json()[0]["name"] == "Lewis Hamilton"
+        assert len(resp.json()["data"]) == 1
+        assert resp.json()["data"][0]["name"] == "Lewis Hamilton"
+        assert resp.json()["total"] == 1
 
     @patch("src.routers.drivers.get_all_drivers", new_callable=AsyncMock)
     def test_list_active_only(self, mock_get, client):
-        mock_get.return_value = [_driver()]
+        mock_get.return_value = ([_driver()], 1)
         resp = client.get("/drivers?active_only=true")
         assert resp.status_code == 200
         mock_get.assert_awaited_once()
         call_kwargs = mock_get.call_args
         assert call_kwargs[1].get("active_only") is True or call_kwargs[0][1] is True
 
-    @patch("src.routers.drivers.get_all_drivers", new_callable=AsyncMock, return_value=[])
+    @patch("src.routers.drivers.get_all_drivers", new_callable=AsyncMock, return_value=([], 0))
     def test_list_empty(self, _m, client):
         resp = client.get("/drivers")
         assert resp.status_code == 200
-        assert resp.json() == []
+        assert resp.json()["data"] == []
+        assert resp.json()["total"] == 0
 
 
 class TestSearchDrivers:
     @patch("src.routers.drivers.search_drivers", new_callable=AsyncMock)
     def test_search_by_name(self, mock_search, client):
-        mock_search.return_value = [_driver()]
+        mock_search.return_value = ([_driver()], 1)
         resp = client.get("/drivers/search?name=Lewis")
         assert resp.status_code == 200
-        assert len(resp.json()) == 1
+        assert len(resp.json()["data"]) == 1
 
     @patch("src.routers.drivers.search_drivers", new_callable=AsyncMock)
     def test_search_by_team(self, mock_search, client):
-        mock_search.return_value = [_driver()]
+        mock_search.return_value = ([_driver()], 1)
         resp = client.get("/drivers/search?team=Ferrari")
         assert resp.status_code == 200
-        assert len(resp.json()) == 1
+        assert len(resp.json()["data"]) == 1
 
-    @patch("src.routers.drivers.search_drivers", new_callable=AsyncMock, return_value=[])
+    @patch("src.routers.drivers.search_drivers", new_callable=AsyncMock, return_value=([], 0))
     def test_search_no_results(self, _m, client):
         resp = client.get("/drivers/search?name=Nobody")
         assert resp.status_code == 200
-        assert resp.json() == []
+        assert resp.json()["data"] == []
 
 
 class TestGetDriver:

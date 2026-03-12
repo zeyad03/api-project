@@ -50,12 +50,15 @@ class _AsyncIter:
 
 
 class MockCursor(_AsyncIter):
-    """Motor cursor mock with chainable sort/limit."""
+    """Motor cursor mock with chainable sort/limit/skip."""
 
     def sort(self, *a, **kw):
         return self
 
     def limit(self, n):
+        return self
+
+    def skip(self, n):
         return self
 
 
@@ -66,6 +69,7 @@ def _col(*, find_one=None, find_docs=None, agg_docs=None,
     c = MagicMock()
     c.find_one = AsyncMock(return_value=find_one)
     c.find = MagicMock(return_value=MockCursor(find_docs or []))
+    c.count_documents = AsyncMock(return_value=len(find_docs or []))
     c.insert_one = AsyncMock(return_value=MagicMock(inserted_id=inserted_id))
     c.update_one = AsyncMock(return_value=MagicMock(matched_count=matched))
     c.delete_one = AsyncMock(return_value=MagicMock(deleted_count=deleted))
@@ -156,8 +160,9 @@ class TestDriversDB:
     async def test_get_all_drivers(self):
         from src.db.drivers import get_all_drivers
         db = _db(_col(find_docs=[_driver_doc()]))
-        result = await get_all_drivers(db)
+        result, total = await get_all_drivers(db)
         assert len(result) == 1 and result[0].name == "Lewis Hamilton"
+        assert total == 1
 
     @pytest.mark.asyncio
     async def test_get_all_drivers_active(self):
@@ -199,7 +204,7 @@ class TestDriversDB:
     async def test_search_drivers(self):
         from src.db.drivers import search_drivers
         db = _db(_col(find_docs=[_driver_doc()]))
-        result = await search_drivers(db, name="Lewis", team="Ferrari")
+        result, total = await search_drivers(db, name="Lewis", team="Ferrari")
         assert len(result) == 1
 
     @pytest.mark.asyncio
@@ -257,7 +262,8 @@ class TestTeamsDB:
     async def test_get_all_teams(self):
         from src.db.teams import get_all_teams
         db = _db(_col(find_docs=[_team_doc()]))
-        assert len(await get_all_teams(db)) == 1
+        result, total = await get_all_teams(db)
+        assert len(result) == 1
 
     @pytest.mark.asyncio
     async def test_get_all_teams_active(self):
@@ -284,7 +290,8 @@ class TestTeamsDB:
     async def test_search_teams(self):
         from src.db.teams import search_teams
         db = _db(_col(find_docs=[_team_doc()]))
-        assert len(await search_teams(db, name="Ferrari")) == 1
+        result, total = await search_teams(db, name="Ferrari")
+        assert len(result) == 1
 
     @pytest.mark.asyncio
     async def test_create_team(self):
@@ -691,7 +698,7 @@ class TestHotTakesDB:
     async def test_get_all_hot_takes(self):
         from src.db.hot_takes import get_all_hot_takes
         db = _db(_col(find_docs=[_take_doc()]))
-        result = await get_all_hot_takes(db)
+        result, total = await get_all_hot_takes(db)
         assert len(result) == 1
 
     @pytest.mark.asyncio

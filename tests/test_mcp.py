@@ -107,7 +107,7 @@ class TestMCPProtocol:
 class TestMCPTools:
     @patch("src.mcp.tools.get_all_drivers", new_callable=AsyncMock)
     def test_list_drivers(self, mock_fn, client):
-        mock_fn.return_value = [_driver()]
+        mock_fn.return_value = ([_driver()], 1)
         resp = client.post("/mcp", json=_mcp_call("list_drivers", {"active_only": True, "limit": 10}))
         body = resp.json()
         assert body["result"]["isError"] is False
@@ -116,7 +116,7 @@ class TestMCPTools:
 
     @patch("src.mcp.tools.search_drivers", new_callable=AsyncMock)
     def test_search_drivers(self, mock_fn, client):
-        mock_fn.return_value = [_driver()]
+        mock_fn.return_value = ([_driver()], 1)
         resp = client.post("/mcp", json=_mcp_call("search_drivers", {"name": "Lewis"}))
         assert resp.json()["result"]["isError"] is False
         mock_fn.assert_awaited_once()
@@ -130,32 +130,32 @@ class TestMCPTools:
 
     @patch("src.mcp.tools.get_all_teams", new_callable=AsyncMock)
     def test_list_teams(self, mock_fn, client):
-        mock_fn.return_value = []
+        mock_fn.return_value = ([], 0)
         resp = client.post("/mcp", json=_mcp_call("list_teams"))
         assert resp.json()["result"]["isError"] is False
 
     @patch("src.mcp.tools.search_teams", new_callable=AsyncMock)
     def test_search_teams(self, mock_fn, client):
-        mock_fn.return_value = []
+        mock_fn.return_value = ([], 0)
         resp = client.post("/mcp", json=_mcp_call("search_teams", {"name": "Ferrari"}))
         assert resp.json()["result"]["isError"] is False
 
     @patch("src.mcp.tools.get_all_circuits", new_callable=AsyncMock)
     def test_list_circuits(self, mock_fn, client):
-        mock_fn.return_value = []
+        mock_fn.return_value = ([], 0)
         resp = client.post("/mcp", json=_mcp_call("list_circuits", {"active_only": True}))
         assert resp.json()["result"]["isError"] is False
         assert mock_fn.call_args.kwargs["active_only"] is True
 
     @patch("src.mcp.tools.search_circuits", new_callable=AsyncMock)
     def test_search_circuits(self, mock_fn, client):
-        mock_fn.return_value = []
+        mock_fn.return_value = ([], 0)
         resp = client.post("/mcp", json=_mcp_call("search_circuits", {"country": "Italy"}))
         assert resp.json()["result"]["isError"] is False
 
     @patch("src.mcp.tools.get_all_seasons", new_callable=AsyncMock)
     def test_list_seasons(self, mock_fn, client):
-        mock_fn.return_value = []
+        mock_fn.return_value = ([], 0)
         resp = client.post("/mcp", json=_mcp_call("list_seasons"))
         assert resp.json()["result"]["isError"] is False
 
@@ -168,7 +168,7 @@ class TestMCPTools:
 
     @patch("src.mcp.tools.get_all_races", new_callable=AsyncMock)
     def test_list_races(self, mock_fn, client):
-        mock_fn.return_value = []
+        mock_fn.return_value = ([], 0)
         resp = client.post("/mcp", json=_mcp_call("list_races", {"season_year": 2024}))
         assert resp.json()["result"]["isError"] is False
 
