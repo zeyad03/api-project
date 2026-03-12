@@ -89,18 +89,19 @@ def _get_optional_str(args: dict[str, Any], key: str) -> str | None:
 async def _tool_list_drivers(request: Request, args: dict[str, Any]) -> dict[str, Any]:
     active_only = bool(args.get("active_only", False))
     limit = _get_limit(args)
-    rows = await get_all_drivers(request.app.state.db, active_only=active_only)
-    return mcp_text_result(rows[:limit])
+    rows, _ = await get_all_drivers(request.app.state.db, active_only=active_only, limit=limit)
+    return mcp_text_result(rows)
 
 
 async def _tool_search_drivers(request: Request, args: dict[str, Any]) -> dict[str, Any]:
     limit = _get_limit(args)
-    rows = await search_drivers(
+    rows, _ = await search_drivers(
         request.app.state.db,
         name=_get_optional_str(args, "name"),
         team=_get_optional_str(args, "team"),
+        limit=limit,
     )
-    return mcp_text_result(rows[:limit])
+    return mcp_text_result(rows)
 
 
 async def _tool_get_driver_season_stats(request: Request, args: dict[str, Any]) -> dict[str, Any]:
@@ -116,38 +117,41 @@ async def _tool_get_driver_season_stats(request: Request, args: dict[str, Any]) 
 async def _tool_list_teams(request: Request, args: dict[str, Any]) -> dict[str, Any]:
     active_only = bool(args.get("active_only", False))
     limit = _get_limit(args)
-    rows = await get_all_teams(request.app.state.db, active_only=active_only)
-    return mcp_text_result(rows[:limit])
+    rows, _ = await get_all_teams(request.app.state.db, active_only=active_only, limit=limit)
+    return mcp_text_result(rows)
 
 
 async def _tool_search_teams(request: Request, args: dict[str, Any]) -> dict[str, Any]:
     limit = _get_limit(args)
-    rows = await search_teams(
+    rows, _ = await search_teams(
         request.app.state.db,
         name=_get_optional_str(args, "name"),
+        limit=limit,
     )
-    return mcp_text_result(rows[:limit])
+    return mcp_text_result(rows)
 
 
 async def _tool_list_circuits(request: Request, args: dict[str, Any]) -> dict[str, Any]:
     active_only = bool(args.get("active_only", False))
     limit = _get_limit(args)
-    rows = await get_all_circuits(
+    rows, _ = await get_all_circuits(
         request.app.state.db,
         active_only=active_only,
         country=_get_optional_str(args, "country"),
+        limit=limit,
     )
-    return mcp_text_result(rows[:limit])
+    return mcp_text_result(rows)
 
 
 async def _tool_search_circuits(request: Request, args: dict[str, Any]) -> dict[str, Any]:
     limit = _get_limit(args)
-    rows = await search_circuits(
+    rows, _ = await search_circuits(
         request.app.state.db,
         name=_get_optional_str(args, "name"),
         country=_get_optional_str(args, "country"),
+        limit=limit,
     )
-    return mcp_text_result(rows[:limit])
+    return mcp_text_result(rows)
 
 
 async def _tool_list_seasons(request: Request, args: dict[str, Any]) -> dict[str, Any]:
@@ -159,18 +163,19 @@ async def _tool_list_seasons(request: Request, args: dict[str, Any]) -> dict[str
             request.app.state.db, start_year=start_year, end_year=end_year,
         )
     else:
-        rows = await get_all_seasons(request.app.state.db)
+        rows, _ = await get_all_seasons(request.app.state.db, limit=limit)
     return mcp_text_result(rows[:limit])
 
 
 async def _tool_list_races(request: Request, args: dict[str, Any]) -> dict[str, Any]:
     limit = _get_limit(args)
-    rows = await get_all_races(
+    rows, _ = await get_all_races(
         request.app.state.db,
         season_year=_get_optional_int(args, "season_year"),
         circuit_id=_get_optional_int(args, "circuit_id"),
+        limit=limit,
     )
-    return mcp_text_result(rows[:limit])
+    return mcp_text_result(rows)
 
 
 async def _tool_list_race_results(request: Request, args: dict[str, Any]) -> dict[str, Any]:

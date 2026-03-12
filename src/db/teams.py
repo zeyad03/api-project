@@ -17,10 +17,15 @@ from src.models.team import (
 )
 
 
-async def get_all_teams(db: AsyncIOMotorDatabase, active_only: bool = False) -> list[Team]:
+async def get_all_teams(
+    db: AsyncIOMotorDatabase, active_only: bool = False,
+    skip: int = 0, limit: int = 50,
+) -> tuple[list[Team], int]:
     query = {"active": True} if active_only else {}
-    cursor = db[collections.teams].find(query)
-    return [Team(**doc) async for doc in cursor]
+    total = await db[collections.teams].count_documents(query)
+    cursor = db[collections.teams].find(query).skip(skip).limit(limit)
+    teams = [Team(**doc) async for doc in cursor]
+    return teams, total
 
 
 async def get_team_by_id(team_id: str, db: AsyncIOMotorDatabase) -> Team:
@@ -30,12 +35,17 @@ async def get_team_by_id(team_id: str, db: AsyncIOMotorDatabase) -> Team:
     return Team(**doc)
 
 
-async def search_teams(db: AsyncIOMotorDatabase, name: str | None = None) -> list[Team]:
+async def search_teams(
+    db: AsyncIOMotorDatabase, name: str | None = None,
+    skip: int = 0, limit: int = 50,
+) -> tuple[list[Team], int]:
     query = {}
     if name:
         query["name"] = {"$regex": re.escape(name), "$options": "i"}
-    cursor = db[collections.teams].find(query)
-    return [Team(**doc) async for doc in cursor]
+    total = await db[collections.teams].count_documents(query)
+    cursor = db[collections.teams].find(query).skip(skip).limit(limit)
+    teams = [Team(**doc) async for doc in cursor]
+    return teams, total
 
 
 async def create_team_db(team: TeamCreate, db: AsyncIOMotorDatabase) -> Team:

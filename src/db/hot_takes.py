@@ -12,7 +12,9 @@ async def get_all_hot_takes(
     db: AsyncIOMotorDatabase,
     category: str | None = None,
     sort_by: str = "recent",
-) -> list[HotTake]:
+    skip: int = 0,
+    limit: int = 50,
+) -> tuple[list[HotTake], int]:
     query: dict = {}
     if category:
         query["category"] = category
@@ -20,8 +22,10 @@ async def get_all_hot_takes(
     sort_field = {"recent": ("created_at", -1), "spicy": ("disagrees", -1), "popular": ("agrees", -1)}
     sort_key, sort_dir = sort_field.get(sort_by, ("created_at", -1))
 
-    cursor = db[collections.hot_takes].find(query).sort(sort_key, sort_dir).limit(50)
-    return [HotTake(**doc) async for doc in cursor]
+    total = await db[collections.hot_takes].count_documents(query)
+    cursor = db[collections.hot_takes].find(query).sort(sort_key, sort_dir).skip(skip).limit(limit)
+    takes = [HotTake(**doc) async for doc in cursor]
+    return takes, total
 
 
 async def get_hot_take_by_id(take_id: str, db: AsyncIOMotorDatabase) -> HotTake:

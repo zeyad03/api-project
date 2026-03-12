@@ -15,15 +15,19 @@ async def get_all_circuits(
     db: AsyncIOMotorDatabase,
     active_only: bool = False,
     country: str | None = None,
-) -> list[Circuit]:
+    skip: int = 0,
+    limit: int = 50,
+) -> tuple[list[Circuit], int]:
     """Return circuits, optionally filtered by active status or country."""
     query: dict = {}
     if active_only:
         query["active"] = True
     if country:
         query["country"] = {REGEX_OPERATOR: re.escape(country), REGEX_OPTIONS: "i"}
-    cursor = db[collections.circuits].find(query)
-    return [Circuit(**doc) async for doc in cursor]
+    total = await db[collections.circuits].count_documents(query)
+    cursor = db[collections.circuits].find(query).skip(skip).limit(limit)
+    circuits = [Circuit(**doc) async for doc in cursor]
+    return circuits, total
 
 
 async def get_circuit_by_id(circuit_id: int, db: AsyncIOMotorDatabase) -> Circuit | None:
@@ -38,12 +42,16 @@ async def search_circuits(
     db: AsyncIOMotorDatabase,
     name: str | None = None,
     country: str | None = None,
-) -> list[Circuit]:
+    skip: int = 0,
+    limit: int = 50,
+) -> tuple[list[Circuit], int]:
     """Search circuits by name or country (case-insensitive partial match)."""
     query: dict = {}
     if name:
         query["name"] = {REGEX_OPERATOR: re.escape(name), REGEX_OPTIONS: "i"}
     if country:
         query["country"] = {REGEX_OPERATOR: re.escape(country), REGEX_OPTIONS: "i"}
-    cursor = db[collections.circuits].find(query)
-    return [Circuit(**doc) async for doc in cursor]
+    total = await db[collections.circuits].count_documents(query)
+    cursor = db[collections.circuits].find(query).skip(skip).limit(limit)
+    circuits = [Circuit(**doc) async for doc in cursor]
+    return circuits, total

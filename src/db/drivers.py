@@ -13,10 +13,15 @@ REGEX_OPERATOR = "$regex"
 REGEX_OPTIONS = "$options"
 
 
-async def get_all_drivers(db: AsyncIOMotorDatabase, active_only: bool = False) -> list[Driver]:
+async def get_all_drivers(
+    db: AsyncIOMotorDatabase, active_only: bool = False,
+    skip: int = 0, limit: int = 50,
+) -> tuple[list[Driver], int]:
     query = {"active": True} if active_only else {}
-    cursor = db[collections.drivers].find(query)
-    return [Driver(**doc) async for doc in cursor]
+    total = await db[collections.drivers].count_documents(query)
+    cursor = db[collections.drivers].find(query).skip(skip).limit(limit)
+    drivers = [Driver(**doc) async for doc in cursor]
+    return drivers, total
 
 
 async def get_driver_by_id(driver_id: str, db: AsyncIOMotorDatabase) -> Driver:
@@ -37,15 +42,18 @@ async def get_driver_by_name(name: str, db: AsyncIOMotorDatabase) -> Driver:
 
 
 async def search_drivers(
-    db: AsyncIOMotorDatabase, name: str | None = None, team: str | None = None
-) -> list[Driver]:
+    db: AsyncIOMotorDatabase, name: str | None = None, team: str | None = None,
+    skip: int = 0, limit: int = 50,
+) -> tuple[list[Driver], int]:
     query = {}
     if name:
         query["name"] = {REGEX_OPERATOR: re.escape(name), REGEX_OPTIONS: "i"}
     if team:
         query["team"] = {REGEX_OPERATOR: re.escape(team), REGEX_OPTIONS: "i"}
-    cursor = db[collections.drivers].find(query)
-    return [Driver(**doc) async for doc in cursor]
+    total = await db[collections.drivers].count_documents(query)
+    cursor = db[collections.drivers].find(query).skip(skip).limit(limit)
+    drivers = [Driver(**doc) async for doc in cursor]
+    return drivers, total
 
 
 async def create_driver_db(driver: DriverCreate, db: AsyncIOMotorDatabase) -> Driver:

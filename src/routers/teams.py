@@ -15,7 +15,7 @@ from src.db.teams import (
     search_teams,
     update_team_db,
 )
-from src.models.common import StatusResponse
+from src.models.common import PaginatedResponse, StatusResponse
 from src.models.team import (
     ConstructorResult,
     ConstructorSeasonStat,
@@ -29,19 +29,32 @@ from src.models.user import TokenData
 router = APIRouter()
 
 
-@router.get("", response_model=list[Team])
+@router.get("", response_model=PaginatedResponse[Team])
 async def list_teams(
     request: Request,
     active_only: bool = Query(False, description="Only return active teams"),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=200, description="Max records to return"),
 ):
     """List all F1 teams. No auth required."""
-    return await get_all_teams(request.app.state.db, active_only=active_only)
+    teams, total = await get_all_teams(
+        request.app.state.db, active_only=active_only, skip=skip, limit=limit
+    )
+    return PaginatedResponse(data=teams, total=total, skip=skip, limit=limit)
 
 
-@router.get("/search", response_model=list[Team])
-async def search(request: Request, name: str | None = Query(None)):
+@router.get("/search", response_model=PaginatedResponse[Team])
+async def search(
+    request: Request,
+    name: str | None = Query(None),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=200, description="Max records to return"),
+):
     """Search teams by name (case-insensitive partial match)."""
-    return await search_teams(request.app.state.db, name=name)
+    teams, total = await search_teams(
+        request.app.state.db, name=name, skip=skip, limit=limit
+    )
+    return PaginatedResponse(data=teams, total=total, skip=skip, limit=limit)
 
 
 @router.get("/{team_id}", response_model=Team)

@@ -13,30 +13,40 @@ from src.db.drivers import (
     search_drivers,
     update_driver_db,
 )
-from src.models.common import StatusResponse
+from src.models.common import PaginatedResponse, StatusResponse
 from src.models.driver import Driver, DriverCreate, DriverSeasonStat, DriverUpdate
 from src.models.user import TokenData
 
 router = APIRouter()
 
 
-@router.get("", response_model=list[Driver])
+@router.get("", response_model=PaginatedResponse[Driver])
 async def list_drivers(
     request: Request,
     active_only: bool = Query(False, description="Only return active drivers"),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=200, description="Max records to return"),
 ):
     """List all F1 drivers. No auth required."""
-    return await get_all_drivers(request.app.state.db, active_only=active_only)
+    drivers, total = await get_all_drivers(
+        request.app.state.db, active_only=active_only, skip=skip, limit=limit
+    )
+    return PaginatedResponse(data=drivers, total=total, skip=skip, limit=limit)
 
 
-@router.get("/search", response_model=list[Driver])
+@router.get("/search", response_model=PaginatedResponse[Driver])
 async def search(
     request: Request,
     name: str | None = Query(None),
     team: str | None = Query(None),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=200, description="Max records to return"),
 ):
     """Search drivers by name or team (case-insensitive partial match)."""
-    return await search_drivers(request.app.state.db, name=name, team=team)
+    drivers, total = await search_drivers(
+        request.app.state.db, name=name, team=team, skip=skip, limit=limit
+    )
+    return PaginatedResponse(data=drivers, total=total, skip=skip, limit=limit)
 
 
 @router.get("/{driver_id}", response_model=Driver)

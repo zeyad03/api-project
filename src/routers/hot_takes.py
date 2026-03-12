@@ -11,23 +11,27 @@ from src.db.hot_takes import (
     react_to_hot_take,
 )
 from src.db.users import get_user_by_id
-from src.models.common import StatusResponse
+from src.models.common import PaginatedResponse, StatusResponse
 from src.models.hot_take import HotTake, HotTakeCreate, HotTakeReaction
 from src.models.user import TokenData
 
 router = APIRouter()
 
 
-@router.get("", response_model=list[HotTake])
+@router.get("", response_model=PaginatedResponse[HotTake])
 async def list_hot_takes(
     request: Request,
     category: str | None = Query(None),
     sort_by: str = Query("recent", pattern="^(recent|spicy|popular)$"),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=200, description="Max records to return"),
 ):
     """List hot takes. Sort: recent, spicy (most disagreed), popular (most agreed)."""
-    return await get_all_hot_takes(
-        request.app.state.db, category=category, sort_by=sort_by
+    takes, total = await get_all_hot_takes(
+        request.app.state.db, category=category, sort_by=sort_by,
+        skip=skip, limit=limit,
     )
+    return PaginatedResponse(data=takes, total=total, skip=skip, limit=limit)
 
 
 @router.get("/{take_id}", response_model=HotTake)

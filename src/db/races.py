@@ -10,15 +10,25 @@ async def get_all_races(
     db: AsyncIOMotorDatabase,
     season_year: int | None = None,
     circuit_id: int | None = None,
-) -> list[Race]:
+    skip: int = 0,
+    limit: int = 50,
+) -> tuple[list[Race], int]:
     """Return races, optionally filtered by season year or circuit."""
     query: dict = {}
     if season_year is not None:
         query["season_year"] = season_year
     if circuit_id is not None:
         query["circuit_id"] = circuit_id
-    cursor = db[collections.races].find(query).sort([("season_year", -1), ("round", 1)])
-    return [Race(**doc) async for doc in cursor]
+    total = await db[collections.races].count_documents(query)
+    cursor = (
+        db[collections.races]
+        .find(query)
+        .sort([("season_year", -1), ("round", 1)])
+        .skip(skip)
+        .limit(limit)
+    )
+    races = [Race(**doc) async for doc in cursor]
+    return races, total
 
 
 async def get_race_by_id(race_id: int, db: AsyncIOMotorDatabase) -> Race | None:

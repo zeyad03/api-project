@@ -1,17 +1,28 @@
 """Shared base classes and utilities for all models."""
 
 from datetime import datetime, timezone
-from typing import Annotated
+from typing import Annotated, Generic, TypeVar
 
 from bson import ObjectId
 from pydantic import BaseModel, BeforeValidator, Field, model_validator
 
 PyObjectId = Annotated[str, BeforeValidator(str)]
 
+T = TypeVar("T")
+
 
 def utc_now() -> str:
     """Return current UTC time as ISO string."""
     return datetime.now(timezone.utc).isoformat()
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    """Paginated wrapper for list endpoints."""
+
+    data: list[T]
+    total: int = Field(description="Total number of matching documents")
+    skip: int = Field(description="Number of documents skipped")
+    limit: int = Field(description="Maximum documents returned")
 
 
 class MongoBase(BaseModel):
