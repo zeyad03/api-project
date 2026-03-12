@@ -49,43 +49,51 @@ async def create_hot_take_db(
 async def react_to_hot_take(
     take_id: str, user_id: str, reaction: str, db: AsyncIOMotorDatabase
 ) -> HotTake:
-    doc = await db[collections.hot_takes].find_one({"_id": ObjectId(take_id)})
+    oid = ObjectId(take_id)
+    col = db[collections.hot_takes]
+
+    # Determine which list the user is currently in (atomic read)
+    doc = await col.find_one({"_id": oid})
     if not doc:
         raise HotTakeNotFoundError(take_id)
 
-    agreed_by = doc.get("agreed_by", [])
-    disagreed_by = doc.get("disagreed_by", [])
+    in_agreed = user_id in doc.get("agreed_by", [])
+    in_disagreed = user_id in doc.get("disagreed_by", [])
 
-    # Remove previous reaction if any
-    if user_id in agreed_by:
-        await db[collections.hot_takes].update_one(
-            {"_id": ObjectId(take_id)},
-            {"$pull": {"agreed_by": user_id}, "$inc": {"agrees": -1}},
-        )
-    if user_id in disagreed_by:
-        await db[collections.hot_takes].update_one(
-            {"_id": ObjectId(take_id)},
+    # Remove previous reaction atomically (opposite list)
+    if reaction == "agree" and in_disagreed:
+        await col.update_one(
+            {"_id": oid},
             {"$pull": {"disagreed_by": user_id}, "$inc": {"disagrees": -1}},
         )
+    elif reaction == "disagree" and in_agreed:
+        await col.update_one(
+            {"_id": oid},
+            {"$pull": {"agreed_by": user_id}, "$inc": {"agrees": -1}},
+        )
 
-    # Apply new reaction (toggle off if same reaction)
-    already_reacted = (
-        (reaction == "agree" and user_id in agreed_by)
-        or (reaction == "disagree" and user_id in disagreed_by)
+    # Toggle the requested reaction atomically
+    same_reaction = (reaction == "agree" and in_agreed) or (
+        reaction == "disagree" and in_disagreed
     )
-    if not already_reacted:
-        if reaction == "agree":
-            await db[collections.hot_takes].update_one(
-                {"_id": ObjectId(take_id)},
-                {"$push": {"agreed_by": user_id}, "$inc": {"agrees": 1}},
-            )
-        else:
-            await db[collections.hot_takes].update_one(
-                {"_id": ObjectId(take_id)},
-                {"$push": {"disagreed_by": user_id}, "$inc": {"disagrees": 1}},
-            )
+    if same_reaction:
+        # Un-react: pull from current list
+        field = "agreed_by" if reaction == "agree" else "disagreed_by"
+        count_field = "agrees" if reaction == "agree" else "disagrees"
+        await col.update_one(
+            {"_id": oid},
+            {"$pull": {field: user_id}, "$inc": {count_field: -1}},
+        )
+    else:
+        # New reaction: use $addToSet (idempotent, prevents duplicates)
+        field = "agreed_by" if reaction == "agree" else "disagreed_by"
+        count_field = "agrees" if reaction == "agree" else "disagrees"
+        await col.update_one(
+            {"_id": oid},
+            {"$addToSet": {field: user_id}, "$inc": {count_field: 1}},
+        )
 
-    doc = await db[collections.hot_takes].find_one({"_id": ObjectId(take_id)})
+    doc = await col.find_one({"_id": oid})
     return HotTake(**doc)
 
 

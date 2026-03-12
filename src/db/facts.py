@@ -65,22 +65,27 @@ async def approve_fact_db(fact_id: str, db: AsyncIOMotorDatabase) -> Fact:
 async def like_fact_db(
     fact_id: str, user_id: str, db: AsyncIOMotorDatabase
 ) -> Fact:
-    doc = await db[collections.facts].find_one({"_id": ObjectId(fact_id)})
+    oid = ObjectId(fact_id)
+    col = db[collections.facts]
+
+    doc = await col.find_one({"_id": oid})
     if not doc:
         raise FactNotFoundError(fact_id)
+
     if user_id in doc.get("liked_by", []):
-        # Unlike
-        await db[collections.facts].update_one(
-            {"_id": ObjectId(fact_id)},
+        # Unlike: atomic pull
+        await col.update_one(
+            {"_id": oid},
             {"$pull": {"liked_by": user_id}, "$inc": {"likes": -1}},
         )
     else:
-        # Like
-        await db[collections.facts].update_one(
-            {"_id": ObjectId(fact_id)},
-            {"$push": {"liked_by": user_id}, "$inc": {"likes": 1}},
+        # Like: $addToSet is idempotent (prevents duplicates)
+        await col.update_one(
+            {"_id": oid},
+            {"$addToSet": {"liked_by": user_id}, "$inc": {"likes": 1}},
         )
-    doc = await db[collections.facts].find_one({"_id": ObjectId(fact_id)})
+
+    doc = await col.find_one({"_id": oid})
     return Fact(**doc)
 
 
