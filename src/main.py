@@ -12,6 +12,7 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from src.config.settings import settings
 from src.core.exceptions import F1FactsAPIError
+from src.core.logging import logger
 from src.core.rate_limit import limiter
 from src.db.collections import collections
 from src.routers.auth import router as auth_router
@@ -38,9 +39,9 @@ async def lifespan(app: FastAPI):
     # Quick connection check
     try:
         await app.state.db.command("ping")
-        print(f"Connected to MongoDB - database: {settings.DB_NAME}")
+        logger.info("Connected to MongoDB", extra={"database": settings.DB_NAME})
     except Exception as exc:
-        print(f"MongoDB connection failed: {exc}")
+        logger.error("MongoDB connection failed", extra={"error": str(exc)})
         raise
 
     # ── Security indexes ─────────────────────────────────────────────────
@@ -59,11 +60,11 @@ async def lifespan(app: FastAPI):
         [("timestamp", -1)]
     )
     await app.state.db[collections.audit_logs].create_index("user_id")
-    print("Security indexes ensured")
+    logger.info("Security indexes ensured")
 
     yield
     client.close()
-    print("MongoDB connection closed")
+    logger.info("MongoDB connection closed")
 
 
 # ── App instance ─────────────────────────────────────────────────────────────
@@ -140,7 +141,11 @@ async def validation_exception_handler(
 
 
 @app.exception_handler(Exception)
-async def general_exception_handler(_: Request, exc: Exception) -> JSONResponse:
+async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception(
+        "Unhandled exception",
+        extra={"method": request.method, "path": request.url.path},
+    )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": "Internal server error"},

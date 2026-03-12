@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_AUTH: str = "3/minute"
     RATE_LIMIT_SENSITIVE: str = "10/minute"
     MCP_REQUIRE_AUTH: bool = False
+    LOG_LEVEL: str = "INFO"
 
     def get_origins(self) -> list[str]:
         return [o.strip() for o in self.ORIGINS.split(",")]

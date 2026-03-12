@@ -1,5 +1,7 @@
 """Auth router – registration, login, token refresh, logout, profile."""
 
+import logging
+
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 
@@ -47,6 +49,7 @@ from src.models.user import (
 )
 
 router = APIRouter()
+log = logging.getLogger("f1api.auth")
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -103,6 +106,7 @@ async def register(body: UserCreate, request: Request):
         ip_address=_client_ip(request),
         user_agent=_user_agent(request),
     )
+    log.info("User registered: %s (ip=%s)", user.username, _client_ip(request))
     return Token(access_token=access, refresh_token=refresh, user=user)
 
 
@@ -114,6 +118,7 @@ async def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
     db = request.app.state.db
     user_in_db = await get_user_by_username(form.username, db)
     if not user_in_db or not verify_password(form.password, user_in_db.password_hash):
+        log.warning("Login failed for '%s' (ip=%s)", form.username, _client_ip(request))
         await emit_audit_event(
             db,
             event_type="login_failed",
@@ -137,6 +142,7 @@ async def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
         user_agent=_user_agent(request),
     )
     user = User(**user_in_db.model_dump())
+    log.info("Login success: %s (ip=%s)", user_in_db.username, _client_ip(request))
     return Token(access_token=access, refresh_token=refresh, user=user)
 
 

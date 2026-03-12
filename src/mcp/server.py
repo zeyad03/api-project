@@ -7,6 +7,7 @@ Auth helpers live in ``src.mcp.auth``.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -18,6 +19,7 @@ from src.mcp.auth import authenticate_tool_call
 from src.mcp.tools import TOOLS, get_tool_definitions, mcp_error_result
 
 router = APIRouter()
+log = logging.getLogger("f1api.mcp")
 
 # ── Constants ────────────────────────────────────────────────────────────────
 JSONRPC_VERSION = "2.0"
@@ -114,6 +116,7 @@ async def _handle_tool_call(
 ) -> dict[str, Any]:
     is_authenticated, error_message, _ = await authenticate_tool_call(request)
     if not is_authenticated:
+        log.warning("MCP auth rejected: %s", error_message)
         return _error_response(-32001, error_message, request_id)
 
     tool_name = params.get("name")
@@ -126,9 +129,11 @@ async def _handle_tool_call(
 
     tool = TOOLS.get(tool_name)
     if tool is None:
+        log.warning("MCP unknown tool requested: %s", tool_name)
         return _error_response(-32601, f"Unknown tool: {tool_name}", request_id)
 
     try:
+        log.info("MCP tool call: %s", tool_name)
         result = await tool(request, arguments)
         return _success_response(result, request_id)
     except ValueError as exc:
@@ -139,6 +144,7 @@ async def _handle_tool_call(
             mcp_error_result(exc.detail), request_id,
         )
     except Exception:
+        log.exception("MCP tool '%s' execution failed", tool_name)
         return _error_response(-32603, "Tool execution failed", request_id)
 
 
