@@ -31,6 +31,11 @@ A Formula 1 RESTful API built with **FastAPI** and **MongoDB**. The service prov
 - Added cascade cleanup when deleting users, drivers, or teams so related favourites, predictions, hot takes, and votes are not left orphaned.
 - Expanded automated coverage with dedicated tests for circuits, seasons, races, and results; the suite currently passes with `368` tests.
 
+## API Documentation
+
+- Interactive API docs: [docs/api-docs.html](https://api-project-qa2c.onrender.com/docs/api-docs.html)
+- PDF version of the API docs: [docs/api-docs.pdf](docs/api-docs.pdf)
+
 ## Project Structure
 
 ```
