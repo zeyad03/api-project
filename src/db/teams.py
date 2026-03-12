@@ -1,5 +1,7 @@
 """Team database queries."""
 
+import re
+
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -31,7 +33,7 @@ async def get_team_by_id(team_id: str, db: AsyncIOMotorDatabase) -> Team:
 async def search_teams(db: AsyncIOMotorDatabase, name: str | None = None) -> list[Team]:
     query = {}
     if name:
-        query["name"] = {"$regex": name, "$options": "i"}
+        query["name"] = {"$regex": re.escape(name), "$options": "i"}
     cursor = db[collections.teams].find(query)
     return [Team(**doc) async for doc in cursor]
 

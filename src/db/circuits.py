@@ -1,5 +1,7 @@
 """Circuit database queries."""
 
+import re
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.db.collections import collections
@@ -19,7 +21,7 @@ async def get_all_circuits(
     if active_only:
         query["active"] = True
     if country:
-        query["country"] = {REGEX_OPERATOR: country, REGEX_OPTIONS: "i"}
+        query["country"] = {REGEX_OPERATOR: re.escape(country), REGEX_OPTIONS: "i"}
     cursor = db[collections.circuits].find(query)
     return [Circuit(**doc) async for doc in cursor]
 
@@ -40,8 +42,8 @@ async def search_circuits(
     """Search circuits by name or country (case-insensitive partial match)."""
     query: dict = {}
     if name:
-        query["name"] = {REGEX_OPERATOR: name, REGEX_OPTIONS: "i"}
+        query["name"] = {REGEX_OPERATOR: re.escape(name), REGEX_OPTIONS: "i"}
     if country:
-        query["country"] = {REGEX_OPERATOR: country, REGEX_OPTIONS: "i"}
+        query["country"] = {REGEX_OPERATOR: re.escape(country), REGEX_OPTIONS: "i"}
     cursor = db[collections.circuits].find(query)
     return [Circuit(**doc) async for doc in cursor]

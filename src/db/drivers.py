@@ -1,5 +1,7 @@
 """Driver database queries."""
 
+import re
+
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -27,7 +29,7 @@ async def get_driver_by_id(driver_id: str, db: AsyncIOMotorDatabase) -> Driver:
 async def get_driver_by_name(name: str, db: AsyncIOMotorDatabase) -> Driver:
     """Find a driver by exact name (case-insensitive)."""
     doc = await db[collections.drivers].find_one(
-        {"name": {REGEX_OPERATOR: f"^{name}$", REGEX_OPTIONS: "i"}}
+        {"name": {REGEX_OPERATOR: f"^{re.escape(name)}$", REGEX_OPTIONS: "i"}}
     )
     if not doc:
         raise DriverNotFoundError(name)
@@ -39,9 +41,9 @@ async def search_drivers(
 ) -> list[Driver]:
     query = {}
     if name:
-        query["name"] = {REGEX_OPERATOR: name, REGEX_OPTIONS: "i"}
+        query["name"] = {REGEX_OPERATOR: re.escape(name), REGEX_OPTIONS: "i"}
     if team:
-        query["team"] = {REGEX_OPERATOR: team, REGEX_OPTIONS: "i"}
+        query["team"] = {REGEX_OPERATOR: re.escape(team), REGEX_OPTIONS: "i"}
     cursor = db[collections.drivers].find(query)
     return [Driver(**doc) async for doc in cursor]
 
