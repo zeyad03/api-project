@@ -33,8 +33,8 @@ A Formula 1 RESTful API built with **FastAPI** and **MongoDB**. The service prov
 
 ## API Documentation
 
-- Interactive API docs: [docs/api-docs.html](https://api-project-qa2c.onrender.com/docs/api-docs.html)
-- PDF version of the API docs: [docs/api-docs.pdf](docs/api-docs.pdf)
+- Interactive API docs: [api-docs.html](https://api-project-qa2c.onrender.com/documentation/api-docs.html)
+- PDF version of the API docs: [api-docs.pdf](https://api-project-qa2c.onrender.com/documentation/api-docs.pdf)
 
 ## Project Structure
 

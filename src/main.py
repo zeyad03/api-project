@@ -1,11 +1,12 @@
 """F1 Facts API – main application entry point."""
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -28,6 +29,10 @@ from src.routers.results import router as results_router
 from src.routers.seasons import router as seasons_router
 from src.routers.teams import router as teams_router
 from src.routers.trivia import router as trivia_router
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+EXPORTED_DOCS_DIR = PROJECT_ROOT / "documentation"
 
 
 # ── Lifespan: connect / disconnect MongoDB ───────────────────────────────────
@@ -178,3 +183,27 @@ async def root():
         "version": "1.0.0",
         "docs": "/docs",
     }
+
+
+@app.get("/documentation/api-docs.html", include_in_schema=False)
+async def exported_api_docs() -> FileResponse:
+    """Serve the exported static API docs HTML file."""
+    docs_file = EXPORTED_DOCS_DIR / "api-docs.html"
+    if not docs_file.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Exported API docs file not found",
+        )
+    return FileResponse(docs_file)
+
+
+@app.get("/documentation/api-docs.pdf", include_in_schema=False)
+async def exported_api_docs_pdf() -> FileResponse:
+    """Serve the exported static API docs PDF file."""
+    docs_file = EXPORTED_DOCS_DIR / "api-docs.pdf"
+    if not docs_file.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Exported API docs PDF not found",
+        )
+    return FileResponse(docs_file)
