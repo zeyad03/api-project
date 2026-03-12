@@ -112,7 +112,7 @@ def _initialize_result() -> dict[str, Any]:
 async def _handle_tool_call(
     request: Request, request_id: Any, params: dict[str, Any]
 ) -> dict[str, Any]:
-    is_authenticated, error_message, _ = authenticate_tool_call(request)
+    is_authenticated, error_message, _ = await authenticate_tool_call(request)
     if not is_authenticated:
         return _error_response(-32001, error_message, request_id)
 
