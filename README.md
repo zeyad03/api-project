@@ -12,6 +12,101 @@ This README is intentionally focused on:
 
 For full endpoint contracts, schemas, and examples, use the OpenAPI documentation links below.
 
+## Project overview
+
+This project is a Formula 1 facts service built around a single domain + data-access layer, exposed through two interfaces:
+
+- **REST API (FastAPI)** for standard client/server use
+- **MCP endpoint (`/mcp`)** for AI tool discovery and tool calls (JSON-RPC)
+
+The core idea is that both interfaces share the same DB/query layer and Pydantic models, so REST and MCP stay consistent as the domain evolves.
+
+### Tech stack (at a glance)
+
+- **Python 3.12** + **FastAPI** (ASGI)
+- **MongoDB** via **Motor** (async driver built on PyMongo)
+- **Pydantic models** for schema/validation (`src/models/`)
+- **JWT auth** (bcrypt + `python-jose`) with roles (`user`/`moderator`/`admin`)
+- **Rate limiting** via **slowapi** (per-IP)
+- **Pytest** test suite (`tests/`)
+- Deployment support via **Docker** and **Render** (`docker/`, `render.yaml`)
+
+### High-level architecture
+
+At runtime, the app follows a simple layered structure:
+
+1. **App entrypoint** wires routers + middleware (`src/main.py`)
+2. **Routers** define REST request/response contracts (`src/routers/`)
+3. **DB layer** encapsulates MongoDB queries and write patterns (`src/db/`)
+4. **Models** define domain schemas and shared types (`src/models/`)
+5. **Core utilities** implement cross-cutting concerns like auth, rate limits, and errors (`src/core/`)
+
+The MongoDB connection is created once per app lifespan and stored on `app.state.db` (see `src/main.py`). Startup also ensures a small set of security-related indexes (refresh tokens, blacklist JTIs, audit log query indexes).
+
+The MCP adapter (`src/mcp/`) exposes a JSON-RPC surface over the same domain operations (tool registry + auth adapter). Both REST routers and MCP tools call into the same `src/db/*` functions.
+
+### Request flow (REST + MCP)
+
+- **REST**: client → FastAPI router → DB layer → MongoDB → response
+- **MCP**: client → `/mcp` JSON-RPC → tool registry → DB layer → MongoDB → tool result
+
+In both cases, the service aims for consistent validation (Pydantic), consistent error semantics (central exceptions), and consistent data-access behavior (shared query functions).
+
+### Core features
+
+- **Authentication & authorization**
+  - JWT bearer auth for protected endpoints
+  - Password hashing via bcrypt (`src/core/security.py`)
+  - Access + refresh token flow with refresh-token rotation
+  - Refresh tokens are stored **hashed** (SHA-256), not in plaintext (`src/db/tokens.py`)
+  - Access-token revocation via **JTI blacklist** checked on protected routes (`src/db/tokens.py`, `src/core/security.py`)
+  - Optional stricter auth requirements for MCP (`MCP_REQUIRE_AUTH`)
+  - Role hierarchy utilities exist (`user` < `moderator` < `admin`) via `require_role()` / `require_admin()` (`src/core/security.py`, `src/models/user.py`)
+
+- **Rate limiting**
+  - Configurable default/auth/sensitive limits (see `RATE_LIMIT_*` in `.env`)
+  - Per-IP limiting via slowapi (`src/core/rate_limit.py`)
+  - Uses in-memory limiter storage by default (resets on restart; per-instance)
+
+- **Consistent error handling**
+  - Shared exception types and error semantics in `src/core/exceptions.py`
+
+- **Auditing (security events)**
+  - Auth flows emit audit events (register/login/login_failed/logout/logout_all/token_refresh) (`src/db/audit_logs.py`, `src/routers/auth.py`)
+
+- **Structured logging**
+  - Central logger configuration driven by `LOG_LEVEL` (`src/core/logging.py`)
+
+- **Domain features (what the API actually does)**
+  - Core data browsing: drivers/teams/circuits/seasons/races/results (`src/routers/drivers.py`, `src/routers/teams.py`, `src/routers/circuits.py`, `src/routers/seasons.py`, `src/routers/races.py`, `src/routers/results.py`)
+  - Community features: favourites lists, championship predictions + leaderboards, head-to-head voting, hot takes (`src/routers/favourites.py`, `src/routers/predictions.py`, `src/routers/head_to_head.py`, `src/routers/hot_takes.py`)
+  - Trivia & facts: an in-memory quiz bank plus user-submitted facts that require admin approval (`src/routers/trivia.py`, `src/db/facts.py`)
+  - Current admin-only actions include approving/deleting facts and deleting any user's hot take (`src/routers/trivia.py`, `src/routers/hot_takes.py`)
+
+- **MCP tool surface (subset of the REST surface)**
+  - Tools are defined in `src/mcp/tools.py` and mirror selected public REST reads (e.g., list/search drivers/teams/circuits, seasons/races/results, facts, prediction leaderboards)
+
+- **Seed + admin utilities**
+  - Dataset seeding pipeline: `src/data/seed.py`
+  - MongoDB reset + onboarding helpers: `scripts/mongodb/`
+
+### Configuration and runtime behavior
+
+- Environment-driven settings are parsed in `src/config/settings.py` (Mongo connection, JWT settings, CORS origins, rate-limit defaults, logging).
+- The same configuration is used for REST and MCP; in particular `MCP_REQUIRE_AUTH` controls whether MCP tool calls require bearer auth.
+
+### Repository map (where to find things)
+
+- `src/main.py`: FastAPI app creation + router wiring
+- `src/routers/`: REST endpoints grouped by domain area (drivers, races, results, etc.)
+- `src/db/`: MongoDB query layer used by both REST and MCP
+- `src/models/`: Pydantic models shared across routers/DB/MCP
+- `src/mcp/`: MCP server adapter + tool registry
+- `src/core/`: cross-cutting concerns (security, rate limiting, logging, exceptions)
+- `tests/`: unit/API/auth/integration tests
+
+For additional pointers, see [Useful source references](#useful-source-references) further down.
+
 ## API documentation (hosted)
 
 - OpenAPI HTML (ReDoc): https://api-project-qa2c.onrender.com/documentation/api-docs.html
